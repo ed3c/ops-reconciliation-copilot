@@ -1,0 +1,137 @@
+{
+  "at": "2026-09-15T08:49:09.967770+00:00",
+  "cases": [
+    {
+      "actual": {
+        "mapping": {
+          "left": {
+            "amount": "amount",
+            "currency": "currency",
+            "transaction_id": "transaction_id"
+          },
+          "right": {
+            "amount": "amount",
+            "currency": "currency",
+            "transaction_id": "transaction_id"
+          }
+        },
+        "question": null,
+        "status": "proposed"
+      },
+      "id": "canonical",
+      "metadata": {
+        "elapsed_ms": 1678,
+        "live_provider": true,
+        "max_tokens": 4096,
+        "model": "openai/gpt-5.6-luna",
+        "prompt_sha": "69e7d2f9d6651e15ca9579684e01b728da55c36584cfe62f180eea04b7f1bdbe",
+        "provider": "openrouter",
+        "reasoning_effort": "medium",
+        "response_model": "openai/gpt-5.6-luna",
+        "socket_timeout_seconds": 45,
+        "usage": {
+          "completion_tokens": 50,
+          "prompt_tokens": 209,
+          "total_tokens": 259
+        }
+      },
+      "passed": true
+    },
+    {
+      "actual": {
+        "mapping": {
+          "left": {
+            "amount": "amount",
+            "currency": "currency",
+            "transaction_id": "txn_ref"
+          },
+          "right": {
+            "amount": "paid",
+            "currency": "ccy",
+            "transaction_id": "reference_id"
+          }
+        },
+        "question": null,
+        "status": "proposed"
+      },
+      "id": "aliases",
+      "metadata": {
+        "elapsed_ms": 1184,
+        "live_provider": true,
+        "max_tokens": 4096,
+        "model": "openai/gpt-5.6-luna",
+        "prompt_sha": "69e7d2f9d6651e15ca9579684e01b728da55c36584cfe62f180eea04b7f1bdbe",
+        "provider": "openrouter",
+        "reasoning_effort": "medium",
+        "response_model": "openai/gpt-5.6-luna",
+        "socket_timeout_seconds": 45,
+        "usage": {
+          "completion_tokens": 51,
+          "prompt_tokens": 210,
+          "total_tokens": 261
+        }
+      },
+      "passed": true
+    },
+    {
+      "actual": {
+        "mapping": null,
+        "question": "Which columns on each side identify the transaction ID, amount, and currency?",
+        "status": "clarify"
+      },
+      "id": "opaque",
+      "metadata": {
+        "elapsed_ms": 1304,
+        "live_provider": true,
+        "max_tokens": 4096,
+        "model": "openai/gpt-5.6-luna",
+        "prompt_sha": "69e7d2f9d6651e15ca9579684e01b728da55c36584cfe62f180eea04b7f1bdbe",
+        "provider": "openrouter",
+        "reasoning_effort": "medium",
+        "response_model": "openai/gpt-5.6-luna",
+        "socket_timeout_seconds": 45,
+        "usage": {
+          "completion_tokens": 32,
+          "prompt_tokens": 207,
+          "total_tokens": 239
+        }
+      },
+      "passed": true
+    },
+    {
+      "actual": {
+        "mapping": null,
+        "question": "Which left-side column identifies the currency? The left headers only include \"id\" and \"amount\".",
+        "status": "clarify"
+      },
+      "id": "missing_currency",
+      "metadata": {
+        "elapsed_ms": 2131,
+        "live_provider": true,
+        "max_tokens": 4096,
+        "model": "openai/gpt-5.6-luna",
+        "prompt_sha": "69e7d2f9d6651e15ca9579684e01b728da55c36584cfe62f180eea04b7f1bdbe",
+        "provider": "openrouter",
+        "reasoning_effort": "medium",
+        "response_model": "openai/gpt-5.6-luna",
+        "socket_timeout_seconds": 45,
+        "usage": {
+          "completion_tokens": 75,
+          "prompt_tokens": 204,
+          "total_tokens": 279
+        }
+      },
+      "passed": true
+    }
+  ],
+  "checkout_sha": "78ea5882fa996cf9ef4c900bcc53cd79911b7a7a",
+  "dataset_sha": "241564cc6b534c4502371d36e5338d51aaecd3144c179d1e31ca7e672d7cce13",
+  "live_llm": true,
+  "max_tokens": 4096,
+  "model": "openai/gpt-5.6-luna",
+  "passed": 4,
+  "prompt_sha": "69e7d2f9d6651e15ca9579684e01b728da55c36584cfe62f180eea04b7f1bdbe",
+  "reasoning_effort": "medium",
+  "status": "completed",
+  "total": 4
+}
