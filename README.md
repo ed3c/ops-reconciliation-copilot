@@ -4,6 +4,8 @@
 
 [公開展示網站](https://ops-reconciliation-copilot.vercel.app/) · [工作區](https://ops-reconciliation-copilot.vercel.app/workspace) · [Runtime CI](https://github.com/ed3c/ops-reconciliation-copilot/actions/runs/34960696258) · [真實模型評估](docs/evidence/2026-09-15-luna-medium.json)
 
+[設計脈絡與技術文章計畫：CONTEXT.md](CONTEXT.md) — 目前為 Stage 0；按問題、決策、runtime、成本與驗證逐階段展開。
+
 Python · FastAPI · OpenRouter · PostgreSQL / Supabase · Vercel · GitHub Actions
 
 公開首頁是固定的合成資料範例，不會呼叫模型。真實模型證據來自獨立執行的評估報告；目前尚未完成正式站 Google 登入搭配真實模型的完整瀏覽器驗證。
