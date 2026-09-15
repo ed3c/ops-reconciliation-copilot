@@ -2,6 +2,8 @@
 
 A small reconciliation service with reproducible runtime evidence.
 
+Start with the [five-minute demo, data flow and verified results](docs/demo.md).
+
 ## Current milestone
 
 Upload two CSV files, confirm column mappings, compare exact transaction IDs,
@@ -39,7 +41,7 @@ Reports are written to evidence/ and uploaded by the PR workflow.
 ## Scope and limits
 
 This is a local/single-user prototype, not an authenticated production service.
-Optional LLM mapping proposals are implemented. Live model quality remains unverified until the separate authenticated evaluation runs.
+Optional LLM mapping proposals are implemented. A real OpenRouter smoke evaluation passed four fixed cases with Luna medium; representative enterprise model quality remains unmeasured. See the [demo and evidence](docs/demo.md).
 Reviews persist the current decision and reason; authenticated actor identity and
 append-only review history remain future work.
 The restart test proves persistence after graceful process termination; it does
