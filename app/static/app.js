@@ -38,6 +38,7 @@ async function refresh() {
       const label = node("label", side + " " + field, group);
       const select = node("select", undefined, label);
       select.id = side + "-" + field;
+      select.setAttribute("aria-label", side + " " + field);
       node("option", "Choose a column", select).value = "";
       for (const header of run.sources[side].headers) node("option", header, select).value = header;
       select.value = run.mapping?.[side]?.[field] || "";

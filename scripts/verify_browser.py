@@ -72,6 +72,8 @@ with tempfile.TemporaryDirectory() as temp, (OUT / "server.log").open("w") as lo
                 passed = True
             finally:
                 if not passed:
+                    print("PAGE ERRORS:", errors)
+                    print("PAGE TEXT:", page.locator("body").inner_text())
                     page.screenshot(path=str(OUT / "failure.png"), full_page=True)
                 context.tracing.stop(path=str(OUT / "trace.zip"))
                 browser.close()
