@@ -1,0 +1,22 @@
+[
+  {
+    "finding_id": "F001",
+    "type": "amount_mismatch",
+    "transaction_id": "T100",
+    "left": [
+      {
+        "row": 2,
+        "amount": "100.00",
+        "currency": "USD"
+      }
+    ],
+    "right": [
+      {
+        "row": 2,
+        "amount": "98.00",
+        "currency": "USD"
+      }
+    ],
+    "delta": "2.00"
+  }
+]

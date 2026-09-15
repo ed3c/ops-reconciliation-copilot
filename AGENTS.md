@@ -1,0 +1,1 @@
+Keep changes scoped to the current milestone. Run python scripts/verify_runtime.py. Preserve hand-authored fixtures as independent oracles. Never label mocked model output as live LLM evidence. Record runtime failures and inspect logs before changing assertions. Do not merge without user authorization.
