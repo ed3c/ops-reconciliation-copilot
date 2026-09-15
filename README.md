@@ -69,19 +69,19 @@ Chromium performs actual upload, mapping correction, review, page reload and CSV
 
 ## Optional mapping suggestions
 
-Export ANTHROPIC_API_KEY and ANTHROPIC_MODEL before starting the service. Choose an available model ID in your Anthropic account; no model is selected automatically. The browser then shows Suggest columns. Only header names go to the provider; row data stays local. Review suggested columns before confirming. Ambiguous headers request clarification. The header-only approach intentionally cannot resolve ambiguous columns from cell values.
+Export OPENROUTER_API_KEY and OPENROUTER_MODEL before starting the service. Choose an available model ID in your OpenRouter account; use the full provider/model ID from the OpenRouter model catalog. No model is selected automatically. The browser then shows Suggest columns. Only header names go to the provider; row data stays local. Review suggested columns before confirming. Ambiguous headers request clarification. The header-only approach intentionally cannot resolve ambiguous columns from cell values.
 
-Transport uses the Anthropic Messages API with a 10-second socket timeout, 600 output-token limit and no automatic retries. Validated results store prompt hash, model, token usage and latency with the run. Failed calls store a bounded error code; provider response bodies and keys are never included in client errors. This does not impose a total spending cap on repeated user requests. Manual mapping remains available without a key.
+Transport uses the OpenRouter Chat Completions API with a 10-second socket timeout, 600 output-token limit and no application-level automatic retries. OpenRouter may route requests between upstream providers. Validated results store prompt hash, model, token usage and latency with the run. Failed calls store a bounded error code; provider response bodies and keys are never included in client errors. This does not impose a total spending cap on repeated user requests. Manual mapping remains available without a key.
 
-Source: https://platform.claude.com/docs/en/api/messages
+Source: https://openrouter.ai/docs/api/reference/overview
 
 ## Model evidence
 
-PR CI runs 8 contract tests and real HTTP/browser integration against a LOCAL FAKE provider. These are integration evidence, not model-quality scores. Run locally with:
+PR CI runs 9 contract tests and real HTTP/browser integration against a LOCAL FAKE provider. These are integration evidence, not model-quality scores. Run locally with:
 
 ```sh
 python -m unittest discover -s tests -p 'test_*.py' -v
 python scripts/verify_mapping.py
 ```
 
-For live evaluation, configure repository secret ANTHROPIC_API_KEY and repository variable ANTHROPIC_MODEL. On main, manually run Live mapping evaluation in Actions (or run python evals/run.py locally with exported configuration). It makes four bounded calls on hand-authored header cases. Missing configuration exits 2 and writes status=not_run; it never reports a mocked pass. Four cases are smoke coverage, not a representative enterprise benchmark. Output includes dataset/prompt hashes, checkout SHA, per-case decisions, usage and timing.
+For live evaluation, configure repository secret OPENROUTER_API_KEY and repository variable OPENROUTER_MODEL. On main, manually run Live mapping evaluation in Actions (or run python evals/run.py locally with exported configuration). It makes four bounded calls on hand-authored header cases. Missing configuration exits 2 and writes status=not_run; it never reports a mocked pass. Four cases are smoke coverage, not a representative enterprise benchmark. Output includes dataset/prompt hashes, checkout SHA, per-case decisions, usage and timing.

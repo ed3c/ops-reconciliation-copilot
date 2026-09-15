@@ -19,7 +19,7 @@ class ProposalError(Exception):
 
 
 def configured():
-    return bool(os.environ.get("ANTHROPIC_API_KEY") and os.environ.get("ANTHROPIC_MODEL"))
+    return bool(os.environ.get("OPENROUTER_API_KEY") and os.environ.get("OPENROUTER_MODEL"))
 
 
 def validate(value, headers):
@@ -56,13 +56,13 @@ def propose(headers):
     # Keep requests finite and send no transaction records or amounts.
     if set(headers) != {"left", "right"} or any(len(cols) > 100 or any(len(c) > 200 for c in cols) for cols in headers.values()):
         raise ProposalError("input_too_large")
-    endpoint = os.environ.get("ANTHROPIC_MESSAGES_URL", "https://api.anthropic.com/v1/messages")
-    if endpoint != "https://api.anthropic.com/v1/messages" and not endpoint.startswith("http://127.0.0.1:"):
+    endpoint = os.environ.get("OPENROUTER_CHAT_URL", "https://openrouter.ai/api/v1/chat/completions")
+    if endpoint != "https://openrouter.ai/api/v1/chat/completions" and not endpoint.startswith("http://127.0.0.1:"):
         raise ProposalError("invalid_endpoint")
-    payload = {"model": os.environ["ANTHROPIC_MODEL"], "max_tokens": 600,
-               "system": PROMPT, "messages": [{"role": "user", "content": json.dumps(headers)}]}
+    payload = {"model": os.environ["OPENROUTER_MODEL"], "max_tokens": 600,
+               "messages": [{"role": "system", "content": PROMPT}, {"role": "user", "content": json.dumps(headers)}]}
     req = urllib.request.Request(endpoint, data=json.dumps(payload).encode(), method="POST",
-        headers={"Content-Type": "application/json", "x-api-key": os.environ["ANTHROPIC_API_KEY"], "anthropic-version": "2023-06-01"})
+        headers={"Content-Type": "application/json", "Authorization": "Bearer " + os.environ["OPENROUTER_API_KEY"]})
     started = time.monotonic()
     try:
         with urllib.request.build_opener(NoRedirect).open(req, timeout=10) as response:
@@ -70,19 +70,22 @@ def propose(headers):
         if len(raw) > 65536:
             raise ProposalError("invalid_output")
         message = json.loads(raw)
-        if message.get("stop_reason") != "end_turn":
+        if message.get("error"):
+            raise ProposalError("provider_error")
+        choice = message["choices"][0]
+        if choice.get("finish_reason") != "stop":
             raise ProposalError("incomplete_output")
-        blocks = message["content"]
-        text = "".join(b["text"] for b in blocks if b["type"] == "text")
+        text = choice["message"]["content"]
         value = validate(json.loads(text), headers)
         usage = message.get("usage", {})
-        tokens = {k: usage[k] for k in ("input_tokens", "output_tokens") if type(usage.get(k)) is int and usage[k] >= 0}
+        tokens = {k: usage[k] for k in ("prompt_tokens", "completion_tokens", "total_tokens") if type(usage.get(k)) is int and usage[k] >= 0}
     except urllib.error.HTTPError as error:
         raise ProposalError("provider_http_error") from error
     except (TimeoutError, urllib.error.URLError, OSError) as error:
         raise ProposalError("provider_unavailable") from error
-    except (ValueError, KeyError, TypeError, AttributeError) as error:
+    except (ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
         raise ProposalError("invalid_output") from error
-    return {"proposal": value, "metadata": {"provider": "anthropic", "model": payload["model"],
+    return {"proposal": value, "metadata": {"provider": "openrouter", "model": payload["model"],
+        "response_model": message.get("model"),
         "prompt_sha": PROMPT_SHA, "elapsed_ms": round((time.monotonic()-started)*1000),
-        "usage": tokens, "live_provider": endpoint == "https://api.anthropic.com/v1/messages"}}
+        "usage": tokens, "live_provider": endpoint == "https://openrouter.ai/api/v1/chat/completions"}}

@@ -16,8 +16,10 @@ GOOD = {"status": "proposed", "mapping": {
 class Handler(BaseHTTPRequestHandler):
     calls = 0
     def do_POST(self):
+        assert self.path == "/api/v1/chat/completions"
+        assert self.headers["Authorization"] == "Bearer local-fake-only"
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-        assert json.loads(body["messages"][0]["content"]) == {
+        assert json.loads(body["messages"][1]["content"]) == {
             "left": ["txn_ref", "amount", "currency"], "right": ["reference_id", "paid", "ccy"]}
         Handler.calls += 1
         # First suggestion fails, second returns a valid proposal.
@@ -25,7 +27,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(503)
             self.end_headers()
             return
-        raw = json.dumps({"stop_reason": "end_turn", "content": [{"type": "text", "text": json.dumps(GOOD)}], "usage": {"input_tokens": 20, "output_tokens": 40}}).encode()
+        raw = json.dumps({"choices": [{"finish_reason": "stop", "message": {"role": "assistant", "content": json.dumps(GOOD)}}], "model": "fake-model", "usage": {"prompt_tokens": 20, "completion_tokens": 40, "total_tokens": 60}}).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(raw)))
@@ -40,8 +42,8 @@ server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
 thread = threading.Thread(target=server.serve_forever, daemon=True)
 thread.start()
 try:
-    env = {**os.environ, "ANTHROPIC_API_KEY": "local-fake-only", "ANTHROPIC_MODEL": "fake-model",
-           "ANTHROPIC_MESSAGES_URL": f"http://127.0.0.1:{server.server_port}/v1/messages",
+    env = {**os.environ, "OPENROUTER_API_KEY": "local-fake-only", "OPENROUTER_MODEL": "fake-model",
+           "OPENROUTER_CHAT_URL": f"http://127.0.0.1:{server.server_port}/api/v1/chat/completions",
            "VERIFY_FAKE_MAPPING": "1"}
     subprocess.run([sys.executable, "scripts/verify_browser.py"], cwd=ROOT, env=env, check=True)
     assert Handler.calls == 2, Handler.calls

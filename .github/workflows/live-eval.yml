@@ -15,8 +15,8 @@ jobs:
           python-version: '3.12'
       - name: Run four hand-labeled live cases
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL }}
         run: python evals/run.py
       - uses: actions/upload-artifact@v4
         if: always()
