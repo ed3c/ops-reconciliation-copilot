@@ -196,3 +196,8 @@ def export(run_id: str):
             key = "'" + key
         writer.writerow([f["finding_id"], f["type"], key, f["delta"], data["reviews"].get(f["finding_id"], {}).get("decision", "pending")])
     return Response(out.getvalue(), media_type="text/csv", headers={"Content-Disposition": 'attachment; filename="reconciliation.csv"'})
+
+
+# Mount last so API routes keep their existing ownership.
+from fastapi.staticfiles import StaticFiles
+app.mount("/", StaticFiles(directory=Path(__file__).parent / "static", html=True), name="ui")
