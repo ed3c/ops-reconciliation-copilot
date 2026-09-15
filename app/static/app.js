@@ -2,10 +2,10 @@ const $ = (id) => document.getElementById(id);
 let run;
 const fields = ["transaction_id", "amount", "currency"];
 async function api(path, method = "GET", body) {
-  const options = {method};
+  const options = {method, headers: {"X-Recon-Request": "1"}};
   if (body instanceof FormData) options.body = body;
   else if (body !== undefined) {
-    options.headers = {"Content-Type": "application/json"};
+    options.headers["Content-Type"] = "application/json";
     options.body = JSON.stringify(body);
   }
   const response = await fetch(path, options);

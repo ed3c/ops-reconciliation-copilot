@@ -17,6 +17,7 @@ jobs:
       - run: python -m pip install -r requirements.txt
       - run: python -m unittest discover -s tests -p 'test_*.py' -v
       - run: python scripts/verify_runtime.py
+      - run: python scripts/verify_owner.py
       - run: python -m pip install -r requirements-browser.txt
       - run: python -m playwright install --with-deps chromium
       - run: python scripts/verify_browser.py
@@ -63,6 +64,7 @@ jobs:
       - run: python scripts/init_db.py
       - run: python scripts/verify_db_access.py
       - run: python scripts/verify_runtime.py
+      - run: python scripts/verify_owner.py
       - run: python scripts/verify_postgres.py
       - run: python -m pip install -r requirements-browser.txt
       - run: python -m playwright install --with-deps chromium

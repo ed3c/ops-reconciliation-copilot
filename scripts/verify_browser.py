@@ -15,9 +15,10 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / ("evidence/mapping-browser" if os.environ.get("VERIFY_FAKE_MAPPING") else "evidence/browser")
 OUT.mkdir(parents=True, exist_ok=True)
 FIX = ROOT / "tests/fixtures"
+OWNER_PASSWORD = "ci-only-owner-password-not-a-real-secret"
 passed = False
 with tempfile.TemporaryDirectory() as temp, (OUT / "server.log").open("w") as log:
-    server = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8765"], cwd=ROOT, env={**os.environ, "RECON_DB": str(Path(temp) / "db.sqlite3")}, stdout=log, stderr=log)
+    server = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8765"], cwd=ROOT, env={**os.environ, "RECON_DB": str(Path(temp) / "db.sqlite3"), "RECON_OWNER_PASSWORD": OWNER_PASSWORD}, stdout=log, stderr=log)
     try:
         for _ in range(100):
             if server.poll() is not None:
@@ -31,13 +32,13 @@ with tempfile.TemporaryDirectory() as temp, (OUT / "server.log").open("w") as lo
             raise RuntimeError("Server readiness timeout")
         with sync_playwright() as p:
             browser = p.chromium.launch()
-            context = browser.new_context(viewport={"width": 1100, "height": 900})
+            context = browser.new_context(viewport={"width": 1100, "height": 900}, http_credentials={"username": "owner", "password": OWNER_PASSWORD})
             context.tracing.start(screenshots=True, snapshots=True, sources=True)
             page = context.new_page()
             errors = []
             page.on("pageerror", lambda error: errors.append(str(error)))
             try:
-                page.goto("http://127.0.0.1:8765")
+                page.goto("http://127.0.0.1:8765/workspace")
                 page.get_by_label("Left CSV").set_input_files(FIX / "left.csv")
                 page.get_by_label("Right CSV").set_input_files(FIX / "right.csv")
                 page.get_by_role("button", name="Upload files").click()
