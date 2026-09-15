@@ -82,6 +82,7 @@ $("upload").addEventListener("submit", event => {
   event.preventDefault();
   action(event.submitter, async () => {
     run = await api("/runs", "POST", new FormData(event.target));
+    $("suggestion-note").textContent = "";
     history.replaceState(null, "", "?run=" + encodeURIComponent(run.id));
     await refresh();
     $("notice").textContent = "Files uploaded. Confirm the columns below.";
@@ -103,3 +104,23 @@ if (id) {
   run = {id};
   refresh().catch(error => { $("error").textContent = error.message; });
 }
+
+api("/capabilities").then(value => {
+  $("suggest").hidden = !value.mapping_suggestions;
+}).catch(() => {});
+$("suggest").addEventListener("click", event => {
+  const runId = run.id;
+  action(event.currentTarget, async () => {
+    const result = await api("/runs/" + runId + "/mapping-proposal", "POST");
+    if (run.id !== runId) return;
+    const proposal = result.proposal;
+    if (proposal.status === "clarify") {
+      $("suggestion-note").textContent = proposal.question;
+      return;
+    }
+    for (const side of ["left", "right"]) for (const field of fields) {
+      $(side + "-" + field).value = proposal.mapping[side][field];
+    }
+    $("suggestion-note").textContent = "Suggested columns are ready. Check them before confirming.";
+  });
+});

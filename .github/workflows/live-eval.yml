@@ -1,0 +1,27 @@
+name: Live mapping evaluation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  evaluate:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run four hand-labeled live cases
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
+        run: python evals/run.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-mapping-evaluation
+          path: evidence/live-eval.json
+          if-no-files-found: error
+          retention-days: 14

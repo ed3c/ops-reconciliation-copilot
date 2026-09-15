@@ -12,7 +12,7 @@ import urllib.request
 from playwright.sync_api import sync_playwright, expect
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "evidence/browser"
+OUT = ROOT / ("evidence/mapping-browser" if os.environ.get("VERIFY_FAKE_MAPPING") else "evidence/browser")
 OUT.mkdir(parents=True, exist_ok=True)
 FIX = ROOT / "tests/fixtures"
 passed = False
@@ -41,6 +41,19 @@ with tempfile.TemporaryDirectory() as temp, (OUT / "server.log").open("w") as lo
                 page.get_by_label("Left CSV").set_input_files(FIX / "left.csv")
                 page.get_by_label("Right CSV").set_input_files(FIX / "right.csv")
                 page.get_by_role("button", name="Upload files").click()
+                if os.environ.get("VERIFY_FAKE_MAPPING"):
+                    page.get_by_role("button", name="Suggest columns").click()
+                    expect(page.get_by_role("alert")).to_contain_text("Suggestions unavailable")
+                    expect(page.get_by_role("button", name="Confirm and reconcile")).to_be_enabled()
+                    page.get_by_role("button", name="Suggest columns").click()
+                    expect(page.locator("#suggestion-note")).to_contain_text("Check them before confirming")
+                    expect(page.get_by_label("left transaction_id", exact=True)).to_have_value("txn_ref")
+                    expect(page.get_by_label("right amount", exact=True)).to_have_value("paid")
+                    expect(page.locator("#results")).to_be_hidden()
+                    run_id = page.url.split("?run=")[1]
+                    data = page.request.get(f"http://127.0.0.1:8765/runs/{run_id}").json()
+                    assert data["mapping"] is None and data["state"] == "uploaded"
+                    assert data["mapping_proposal"]["metadata"]["live_provider"] is False
                 for side, values in {"left": ["txn_ref", "amount", "currency"], "right": ["reference_id", "paid", "ccy"]}.items():
                     for field, value in zip(["transaction_id", "amount", "currency"], values):
                         page.get_by_label(side + " " + field, exact=True).select_option(value)
