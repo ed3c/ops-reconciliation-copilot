@@ -10,15 +10,16 @@ import tempfile
 import time
 import urllib.request
 from playwright.sync_api import sync_playwright, expect
+from auth_test_support import environment, keys, token
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / ("evidence/mapping-browser" if os.environ.get("VERIFY_FAKE_MAPPING") else "evidence/browser")
 OUT.mkdir(parents=True, exist_ok=True)
 FIX = ROOT / "tests/fixtures"
-OWNER_PASSWORD = "ci-only-owner-password-not-a-real-secret"
 passed = False
 with tempfile.TemporaryDirectory() as temp, (OUT / "server.log").open("w") as log:
-    server = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8765"], cwd=ROOT, env={**os.environ, "RECON_DB": str(Path(temp) / "db.sqlite3"), "RECON_OWNER_PASSWORD": OWNER_PASSWORD}, stdout=log, stderr=log)
+    key, public = keys(temp)
+    server = subprocess.Popen([sys.executable, "-m", "uvicorn", "scripts.auth_test_support:app_factory", "--factory", "--host", "127.0.0.1", "--port", "8765"], cwd=ROOT, env={**os.environ, "RECON_DB": str(Path(temp) / "db.sqlite3"), **environment(public)}, stdout=log, stderr=log)
     try:
         for _ in range(100):
             if server.poll() is not None:
@@ -32,13 +33,26 @@ with tempfile.TemporaryDirectory() as temp, (OUT / "server.log").open("w") as lo
             raise RuntimeError("Server readiness timeout")
         with sync_playwright() as p:
             browser = p.chromium.launch()
-            context = browser.new_context(viewport={"width": 1100, "height": 900}, http_credentials={"username": "owner", "password": OWNER_PASSWORD})
+            context = browser.new_context(viewport={"width": 1100, "height": 900})
             context.tracing.start(screenshots=True, snapshots=True, sources=True)
             page = context.new_page()
+            nonce = {}
+            def config_route(route):
+                response = route.fetch()
+                nonce["value"] = response.json()["nonce"]
+                route.fulfill(response=response)
+            page.route("**/auth/config", config_route)
+            def gis_route(route):
+                credential = token(key, nonce["value"])
+                script = "window.google = {accounts:{id:{initialize(c){this.config=c},renderButton(el){const b=document.createElement('button');b.textContent='Test Google sign-in';b.onclick=()=>this.config.callback({credential:" + json.dumps(credential) + "});el.append(b)}}}};"
+                route.fulfill(content_type="application/javascript", body=script)
+            page.route("https://accounts.google.com/gsi/client", gis_route)
             errors = []
             page.on("pageerror", lambda error: errors.append(str(error)))
             try:
                 page.goto("http://127.0.0.1:8765/workspace")
+                page.get_by_role("button", name="Test Google sign-in").click()
+                expect(page.get_by_role("button", name="Sign out")).to_be_visible()
                 page.get_by_label("Left CSV").set_input_files(FIX / "left.csv")
                 page.get_by_label("Right CSV").set_input_files(FIX / "right.csv")
                 page.get_by_role("button", name="Upload files").click()
@@ -83,6 +97,9 @@ with tempfile.TemporaryDirectory() as temp, (OUT / "server.log").open("w") as lo
                 page.screenshot(path=str(OUT / "mobile.png"), full_page=True)
                 assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
                 assert not errors, errors
+                page.get_by_role("button", name="Sign out").click()
+                expect(page.get_by_role("heading", name="使用 Google 登入", exact=True)).to_be_visible()
+                assert page.request.get("http://127.0.0.1:8765/capabilities").status == 401
                 passed = True
             finally:
                 if not passed:
@@ -98,5 +115,5 @@ with tempfile.TemporaryDirectory() as temp, (OUT / "server.log").open("w") as lo
         except subprocess.TimeoutExpired:
             server.kill()
             server.wait()
-        (OUT / "result.json").write_text(json.dumps({"passed": passed, "live_llm": False, "run_id": os.environ.get("GITHUB_RUN_ID")}))
-print("PASS: browser upload, mapping recovery, source display, review persistence, export and mobile layout")
+        (OUT / "result.json").write_text(json.dumps({"passed": passed, "live_llm": False, "live_google": False, "run_id": os.environ.get("GITHUB_RUN_ID")}))
+print("PASS: local test Google login/logout, browser upload, mapping recovery, source display, review persistence, export and mobile layout")

@@ -15,7 +15,7 @@ The same FastAPI application and browser UI run on Vercel. Local development def
 
    The script creates the runs table if absent and enables backend-only database access with RLS and client grant revocation. It does not migrate or copy local SQLite data. Do not point it at an unrelated database.
 4. For optional suggestions, set OPENROUTER_API_KEY and OPENROUTER_MODEL=openai/gpt-5.6-luna in Vercel. GitHub Actions secrets are not automatically Vercel environment variables.
-5. Set RECON_OWNER_PASSWORD to a unique random password of at least 32 characters in Production and Preview, then deploy. Sign in at /workspace as owner. Missing owner configuration fails closed. Configure Vercel Authentication with Standard Protection for generated/older deployment URLs while keeping the production showcase public; see [owner access](owner-access.md). This is a single-owner application, not multi-tenant authorization.
+5. Configure GOOGLE_CLIENT_ID, OWNER_GOOGLE_EMAIL and AUTH_SESSION_SECRET using [Google owner setup](owner-access.md), then deploy. Sign in at /workspace using Google. RECON_OWNER_PASSWORD is obsolete. Missing Google configuration fails closed. Keep Vercel Authentication with Standard Protection for old/generated deployment URLs; the production showcase remains public. This is a single-owner application, not multi-tenant authorization.
 6. Check public /health (process liveness); /ready (database access/schema) requires owner authentication. The home page is a static showcase. Follow [the complete demo](demo.md) at /workspace to verify the private workflow.
 
 Never put database credentials or API keys in vercel.json, browser code, logs or commits. The deployment excludes local databases, environment files and test artifacts.
