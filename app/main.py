@@ -5,7 +5,7 @@ from collections import defaultdict
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 
@@ -13,6 +13,8 @@ from app.access import OwnerAccess
 
 app = FastAPI()
 app.add_middleware(OwnerAccess)
+from app.google_login import router as google_router
+app.include_router(google_router)
 from app.storage import connect
 
 
@@ -211,8 +213,15 @@ def mapping_proposal(run_id: str):
     return result
 
 @app.get("/workspace", include_in_schema=False)
-def workspace():
+def workspace(request: Request):
+    from app.access import identity
     from fastapi.responses import FileResponse
+    try:
+        identity(request)
+    except HTTPException as error:
+        if error.status_code not in {401, 503}:
+            raise
+        return FileResponse(Path(__file__).parent / "signin.html")
     return FileResponse(Path(__file__).parent / "workspace.html")
 
 

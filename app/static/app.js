@@ -9,6 +9,10 @@ async function api(path, method = "GET", body) {
     options.body = JSON.stringify(body);
   }
   const response = await fetch(path, options);
+  if (response.status === 401) {
+    location.reload();
+    throw new Error("Session expired. Sign in again.");
+  }
   const data = await response.json();
   if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail));
   return data;
@@ -100,6 +104,12 @@ $("mapping").addEventListener("submit", event => {
   });
 });
 const id = new URLSearchParams(location.search).get("run");
+document.getElementById("logout").addEventListener("click", async () => {
+  try {
+    await api("/auth/logout", "POST");
+    location.replace("/workspace");
+  } catch (error) { $("error").textContent = error.message; }
+});
 if (id) {
   run = {id};
   refresh().catch(error => { $("error").textContent = error.message; });

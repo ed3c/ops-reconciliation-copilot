@@ -5,4 +5,4 @@
 <section><h2>1. Upload records</h2><form id="upload"><div class="columns"><label>Left CSV<input id="left" name="left" type="file" accept=".csv" required></label><label>Right CSV<input id="right" name="right" type="file" accept=".csv" required></label></div><button>Upload files</button></form></section>
 <section id="mapping-panel" hidden><h2>2. Confirm columns</h2><p>Choose the transaction ID, amount and currency in each file. IDs are matched exactly.</p><button id="suggest" type="button" hidden>Suggest columns</button><p id="suggestion-note"></p><form id="mapping"><div id="columns" class="columns"></div><button>Confirm and reconcile</button></form></section>
 <section id="results" hidden><div class="heading"><h2>3. Review differences</h2><a id="export">Download CSV</a></div><p id="summary"></p><div id="findings"></div></section>
-<footer>Single-user workspace · Amounts support up to two decimal places.</footer></main></body></html>
+<footer><button id="logout" type="button">Sign out</button> · Single-user workspace · Amounts support up to two decimal places.</footer></main></body></html>

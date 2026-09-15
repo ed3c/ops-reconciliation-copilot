@@ -31,8 +31,10 @@ Python 3.12 · FastAPI · OpenRouter · PostgreSQL / Supabase · Vercel · Playw
 | 來源列、審核決定、重新開啟結果、CSV 匯出 | 已實作；獨立 fixture 比對、重啟與瀏覽器驗證 |
 | AI 欄位提議、歧義澄清、失敗後手動操作 | 已實作；fake-provider 整合測試及獨立真實模型 smoke evaluation |
 | Supabase 持久化、Vercel 公開展示、owner API 保護 | 已部署；公開頁與匿名 API 封鎖已實測 |
-| 正式站 owner 登入 → 真實模型 → 審核匯出 | **尚未完成整條路徑的驗證**；部署後還需確認密碼設定與實際操作 |
+| 正式站 owner 登入 → 真實模型 → 審核匯出 | **尚未完成整條路徑的驗證**；部署後還需確認 Google 登入設定與實際操作 |
 | 多租戶、不可變審核歷程、企業品質／效能基準 | 未實作或未驗證，不列為既有成果 |
+
+Google 登入實作與設定見 [owner 文件](docs/owner-access.md)。登入測試使用臨時 RSA issuer 與測試按鈕；不宣稱已完成真實 Google 帳號登入。
 
 驗證快照日期：2026-09-15。功能程式完成不等同正式環境的所有設定與驗證都已完成。
 
@@ -103,14 +105,15 @@ stateDiagram-v2
 - **模型失敗不阻斷業務。** 不完整或不合法輸出不寫入 confirmed mapping；前端顯示安全錯誤訊息，仍可手動選欄。原始 provider error body 不回傳給瀏覽器。
 - **外部呼叫不占資料庫鎖。** 先讀 headers、結束交易，再呼叫模型；寫回前重新讀取並檢查狀態，避免覆蓋已完成的 run。
 - **依執行環境選儲存。** 本機 SQLite 用 BEGIN IMMEDIATE；雲端 PostgreSQL 用 SELECT FOR UPDATE 保護同一 run 的讀改寫。Vercel 未設 DATABASE_URL 時拒絕退回暫存 SQLite。
-- **按展示需求設計權限。** 單一 owner 使用 HTTPS Basic authentication，正式環境管理密碼缺漏或太短時 fail closed；私人 response 不可快取，寫入需要自訂 header 並拒絕跨站來源。這是單人存取邊界，沒有多租戶 RBAC、MFA 或完整登入稽核。
+- **按展示需求設計權限。** 單一 owner 使用 Google 登入，後端驗證 ID token、指定 Gmail 與選用的 sub 綁定；短效 HttpOnly cookie 在每次私人 API 請求重新檢查白名單，正式環境設定缺漏時 fail closed；私人 response 不可快取，寫入需要自訂 header 並拒絕跨站來源。這是單人存取邊界，沒有多租戶 RBAC、MFA 或完整登入稽核。
 
 ## 目錄結構與閱讀順序
 
 | 目錄／檔案 | 責任 |
 |---|---|
 | [app/main.py](app/main.py) | HTTP endpoints、輸入驗證、run 狀態與純 reconcile 函式 |
-| [app/access.py](app/access.py) | owner 驗證、公開路徑清單、CSRF 檢查、private cache headers |
+| [app/access.py](app/access.py) + [app/google_login.py](app/google_login.py) | Google token 驗證、owner 白名單、session／nonce、CSRF 與私人 API 保護 |
+| [app/signin.html](app/signin.html) + [app/static/login.js](app/static/login.js) | 官方 Google 登入按鈕、設定缺漏與拒絕存取狀態 |
 | [app/llm.py](app/llm.py) + [app/prompts/](app/prompts/mapping.txt) | OpenRouter transport、prompt、輸出契約與 metadata |
 | [app/storage.py](app/storage.py) | SQLite / PostgreSQL adapter 與交易邊界 |
 | [app/workspace.html](app/workspace.html) + [app/static/app.js](app/static/app.js) | 登入後的上傳、mapping、審核與匯出介面 |
@@ -166,11 +169,14 @@ python -m pip install -r requirements.txt
 python -m uvicorn app.main:app
 ```
 
-本機首頁是公開展示；操作請開啟 [本機工作區](http://127.0.0.1:8000/workspace)。未設定模型 key 或 owner 密碼的本機開發可直接操作，SQLite 預設在 var/reconciliation.sqlite3。設定模型 key 後也必須設定 owner 密碼。環境檔不會自動載入。
+本機首頁是公開展示；操作請開啟 [本機工作區](http://127.0.0.1:8000/workspace)。未設定模型 key 或任何登入設定的本機開發可直接操作，SQLite 預設在 var/reconciliation.sqlite3。設定模型 key 後也必須完成 Google owner 登入設定。環境檔不會自動載入。
 
 | 環境變數 | 用途 |
 |---|---|
-| RECON_OWNER_PASSWORD | 32 字元以上的獨立隨機管理密碼；正式環境必要；帳號 owner |
+| GOOGLE_CLIENT_ID | Google Web application client ID；正式環境必要 |
+| OWNER_GOOGLE_EMAIL | 唯一允許的已驗證 Gmail；正式環境必要 |
+| AUTH_SESSION_SECRET | 至少 32 字元的隨機伺服器簽章密鑰；正式環境必要 |
+| OWNER_GOOGLE_SUB | 可選的穩定 Google 身分綁定；登入後從 /auth/me 取得 |
 | DATABASE_URL | 雲端 PostgreSQL 連線；部署前初始化 schema |
 | OPENROUTER_API_KEY | 可選的 server-side 模型 key，不放在瀏覽器或 Git |
 | OPENROUTER_MODEL | 模型 ID；歷史評估設定為 openai/gpt-5.6-luna |
