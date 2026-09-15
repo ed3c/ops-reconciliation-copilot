@@ -198,6 +198,41 @@ def export(run_id: str):
     return Response(out.getvalue(), media_type="text/csv", headers={"Content-Disposition": 'attachment; filename="reconciliation.csv"'})
 
 
+
+@app.get("/capabilities")
+def capabilities():
+    from app.llm import configured
+    return {"mapping_suggestions": configured()}
+
+
+@app.post("/runs/{run_id}/mapping-proposal")
+def mapping_proposal(run_id: str):
+    from app.llm import ProposalError, propose
+    with connect() as db:
+        data = read(db, run_id)
+    if data["state"] == "reconciled":
+        raise HTTPException(409, "This run is already reconciled")
+    headers = {side: data["sources"][side]["headers"] for side in ("left", "right")}
+    try:
+        result = propose(headers)
+    except ProposalError as error:
+        with connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            current = read(db, run_id)
+            current["last_proposal_error"] = error.code
+            save(db, run_id, current)
+        raise HTTPException(503 if error.code == "not_configured" else 502,
+                            "Suggestions unavailable (" + error.code + "). Select columns manually.")
+    with connect() as db:
+        db.execute("BEGIN IMMEDIATE")
+        current = read(db, run_id)
+        if current["state"] == "reconciled":
+            raise HTTPException(409, "Run reconciled while proposal was pending")
+        current["mapping_proposal"] = result
+        current.pop("last_proposal_error", None)
+        save(db, run_id, current)
+    return result
+
 # Mount last so API routes keep their existing ownership.
 from fastapi.staticfiles import StaticFiles
 app.mount("/", StaticFiles(directory=Path(__file__).parent / "static", html=True), name="ui")

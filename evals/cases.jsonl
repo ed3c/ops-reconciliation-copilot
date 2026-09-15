@@ -1,0 +1,4 @@
+{"id":"canonical","headers":{"left":["transaction_id","amount","currency"],"right":["transaction_id","amount","currency"]},"expected":{"status":"proposed","mapping":{"left":{"transaction_id":"transaction_id","amount":"amount","currency":"currency"},"right":{"transaction_id":"transaction_id","amount":"amount","currency":"currency"}}}}
+{"id":"aliases","headers":{"left":["txn_ref","amount","currency"],"right":["reference_id","paid","ccy"]},"expected":{"status":"proposed","mapping":{"left":{"transaction_id":"txn_ref","amount":"amount","currency":"currency"},"right":{"transaction_id":"reference_id","amount":"paid","currency":"ccy"}}}}
+{"id":"opaque","headers":{"left":["a","b","c"],"right":["x","y","z"]},"expected":{"status":"clarify"}}
+{"id":"missing_currency","headers":{"left":["id","amount"],"right":["id","amount","currency"]},"expected":{"status":"clarify"}}

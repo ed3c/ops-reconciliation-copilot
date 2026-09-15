@@ -39,7 +39,7 @@ Reports are written to evidence/ and uploaded by the PR workflow.
 ## Scope and limits
 
 This is a local/single-user prototype, not an authenticated production service.
-No LLM API or model-quality evaluation is implemented in this milestone.
+Optional LLM mapping proposals are implemented. Live model quality remains unverified until the separate authenticated evaluation runs.
 Reviews persist the current decision and reason; authenticated actor identity and
 append-only review history remain future work.
 The restart test proves persistence after graceful process termination; it does
@@ -55,8 +55,7 @@ function and SQLite transaction boundary. Inputs become immutable after
 reconciliation. BEGIN IMMEDIATE serializes per-database mutations so repeated
 reconciliation returns the stored result.
 
-Next milestones: broader failure injection, LLM mapping and
-explanation with separately reported live evaluations.
+Next milestones: broader failure injection and evidence-backed explanations.
 
 ## Browser verification
 
@@ -67,3 +66,22 @@ python scripts/verify_browser.py
 ```
 
 Chromium performs actual upload, mapping correction, review, page reload and CSV download. The downloaded report is compared against the existing independent fixture. Desktop/mobile screenshots and a Playwright trace are saved in evidence/browser. No model API is involved. Each run URL can be reopened on the same service to recover saved work.
+
+## Optional mapping suggestions
+
+Export ANTHROPIC_API_KEY and ANTHROPIC_MODEL before starting the service. Choose an available model ID in your Anthropic account; no model is selected automatically. The browser then shows Suggest columns. Only header names go to the provider; row data stays local. Review suggested columns before confirming. Ambiguous headers request clarification. The header-only approach intentionally cannot resolve ambiguous columns from cell values.
+
+Transport uses the Anthropic Messages API with a 10-second socket timeout, 600 output-token limit and no automatic retries. Validated results store prompt hash, model, token usage and latency with the run. Failed calls store a bounded error code; provider response bodies and keys are never included in client errors. This does not impose a total spending cap on repeated user requests. Manual mapping remains available without a key.
+
+Source: https://platform.claude.com/docs/en/api/messages
+
+## Model evidence
+
+PR CI runs 8 contract tests and real HTTP/browser integration against a LOCAL FAKE provider. These are integration evidence, not model-quality scores. Run locally with:
+
+```sh
+python -m unittest discover -s tests -p 'test_*.py' -v
+python scripts/verify_mapping.py
+```
+
+For live evaluation, configure repository secret ANTHROPIC_API_KEY and repository variable ANTHROPIC_MODEL. On main, manually run Live mapping evaluation in Actions (or run python evals/run.py locally with exported configuration). It makes four bounded calls on hand-authored header cases. Missing configuration exits 2 and writes status=not_run; it never reports a mocked pass. Four cases are smoke coverage, not a representative enterprise benchmark. Output includes dataset/prompt hashes, checkout SHA, per-case decisions, usage and timing.
