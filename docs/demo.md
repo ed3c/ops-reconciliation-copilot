@@ -5,7 +5,7 @@ This single-user prototype helps an operations reviewer compare two transaction 
 ## Five-minute walkthrough
 
 1. Follow the [local setup](../README.md#run). No GPU is required; Python runs locally and optional model inference runs through OpenRouter. An M1 Pro with 16 GB can use this API-based design without loading model weights.
-2. Upload [left.csv](../tests/fixtures/left.csv) and [right.csv](../tests/fixtures/right.csv).
+2. Open `/workspace` (owner sign-in when configured), then upload [left.csv](../tests/fixtures/left.csv) and [right.csv](../tests/fixtures/right.csv).
 3. If the server has OpenRouter configuration, click **Suggest columns**. Otherwise select the following mappings manually.
 
 | Field | Left | Right |
@@ -35,7 +35,7 @@ flowchart TD
   G --> H["CSV export"]
 ```
 
-Only header names are sent to OpenRouter. A validated proposal is stored separately from the confirmed mapping. The deterministic reconciler owns transaction matching and arithmetic. Review decisions persist in SQLite. The browser and HTTP tests exercise the service boundary; the model evaluation exercises the provider adapter directly, not a full live-model browser journey.
+Only header names are sent to OpenRouter. A validated proposal is stored separately from the confirmed mapping. The deterministic reconciler owns transaction matching and arithmetic. Review decisions persist in local SQLite or hosted PostgreSQL. The browser and HTTP tests exercise the service boundary; the model evaluation exercises the provider adapter directly, not a full live-model browser journey.
 
 ## Evidence reviewers can inspect
 
@@ -80,4 +80,4 @@ For a new live evaluation, configure the repository Actions secret and variable 
 - Why limit AI to proposals? Ambiguous headers can require clarification, and the reviewer must control the mapping used for arithmetic.
 - Why Decimal? Currency differences should not inherit binary floating-point rounding errors.
 - Why an independent export fixture? A verifier that regenerates its expected result using the implementation can reproduce the same defect.
-- What remains unproven? Representative enterprise model quality, a browser journey using the live model, authenticated user isolation, append-only review history, and power-loss/crash-at-commit durability.
+- What remains unproven? Representative enterprise model quality, a browser journey using the live model, multi-tenant user isolation, append-only review history, and power-loss/crash-at-commit durability.
