@@ -59,13 +59,13 @@ def propose(headers):
     endpoint = os.environ.get("OPENROUTER_CHAT_URL", "https://openrouter.ai/api/v1/chat/completions")
     if endpoint != "https://openrouter.ai/api/v1/chat/completions" and not endpoint.startswith("http://127.0.0.1:"):
         raise ProposalError("invalid_endpoint")
-    payload = {"model": os.environ["OPENROUTER_MODEL"], "max_tokens": 600,
+    payload = {"model": os.environ["OPENROUTER_MODEL"], "max_tokens": 4096, "reasoning": {"effort": "medium"},
                "messages": [{"role": "system", "content": PROMPT}, {"role": "user", "content": json.dumps(headers)}]}
     req = urllib.request.Request(endpoint, data=json.dumps(payload).encode(), method="POST",
         headers={"Content-Type": "application/json", "Authorization": "Bearer " + os.environ["OPENROUTER_API_KEY"]})
     started = time.monotonic()
     try:
-        with urllib.request.build_opener(NoRedirect).open(req, timeout=10) as response:
+        with urllib.request.build_opener(NoRedirect).open(req, timeout=45) as response:
             raw = response.read(65537)
         if len(raw) > 65536:
             raise ProposalError("invalid_output")
@@ -87,5 +87,6 @@ def propose(headers):
         raise ProposalError("invalid_output") from error
     return {"proposal": value, "metadata": {"provider": "openrouter", "model": payload["model"],
         "response_model": message.get("model"),
+        "reasoning_effort": "medium", "max_tokens": 4096, "socket_timeout_seconds": 45,
         "prompt_sha": PROMPT_SHA, "elapsed_ms": round((time.monotonic()-started)*1000),
         "usage": tokens, "live_provider": endpoint == "https://openrouter.ai/api/v1/chat/completions"}}

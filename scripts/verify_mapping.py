@@ -21,6 +21,8 @@ class Handler(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         assert json.loads(body["messages"][1]["content"]) == {
             "left": ["txn_ref", "amount", "currency"], "right": ["reference_id", "paid", "ccy"]}
+        assert body["reasoning"] == {"effort": "medium"}
+        assert body["max_tokens"] == 4096
         Handler.calls += 1
         # First suggestion fails, second returns a valid proposal.
         if Handler.calls == 1:

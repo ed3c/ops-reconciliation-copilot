@@ -15,11 +15,12 @@ class FakeOpener:
     def __init__(self, result):
         self.result = result
     def open(self, req, timeout):
-        assert timeout == 10
+        assert timeout == 45
         assert req.get_header("Authorization") == "Bearer test-only"
         body = json.loads(req.data)
         assert json.loads(body["messages"][1]["content"]) == HEADERS
-        assert body["max_tokens"] == 600
+        assert body["max_tokens"] == 4096
+        assert body["reasoning"] == {"effort": "medium"}
         assert body["messages"][0]["role"] == "system"
         assert "system" not in body
         if isinstance(self.result, Exception):
