@@ -1,0 +1,2 @@
+finding_id,type,transaction_id,delta,decision
+F001,amount_mismatch,T100,2.00,accepted

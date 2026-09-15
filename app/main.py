@@ -9,7 +9,10 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+from app.access import OwnerAccess
+
 app = FastAPI()
+app.add_middleware(OwnerAccess)
 from app.storage import connect
 
 
@@ -206,6 +209,12 @@ def mapping_proposal(run_id: str):
         current.pop("last_proposal_error", None)
         db.save(run_id, current)
     return result
+
+@app.get("/workspace", include_in_schema=False)
+def workspace():
+    from fastapi.responses import FileResponse
+    return FileResponse(Path(__file__).parent / "workspace.html")
+
 
 # Mount last so API routes keep their existing ownership.
 from fastapi.staticfiles import StaticFiles
