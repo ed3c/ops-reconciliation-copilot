@@ -1,0 +1,26 @@
+name: Initialize cloud database
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: initialize-cloud-database
+  cancel-in-progress: false
+jobs:
+  initialize:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - name: Initialize dedicated cloud database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python scripts/init_db.py
+      - name: Record successful initialization
+        run: echo "Schema initialization succeeded for checkout $GITHUB_SHA. Hosted website verification is still required." >> "$GITHUB_STEP_SUMMARY"
