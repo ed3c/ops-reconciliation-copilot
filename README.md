@@ -21,7 +21,7 @@ python -m pip install -r requirements.txt
 python -m uvicorn app.main:app
 ```
 
-Open http://127.0.0.1:8000/docs for the interactive API.
+Open http://127.0.0.1:8000 for the browser workspace, or /docs for the interactive API.
 The database defaults to var/reconciliation.sqlite3; override RECON_DB if needed.
 
 ## Verify
@@ -39,7 +39,7 @@ Reports are written to evidence/ and uploaded by the PR workflow.
 ## Scope and limits
 
 This is a local/single-user prototype, not an authenticated production service.
-No LLM API, browser UI or model-quality evaluation is implemented in this milestone.
+No LLM API or model-quality evaluation is implemented in this milestone.
 Reviews persist the current decision and reason; authenticated actor identity and
 append-only review history remain future work.
 The restart test proves persistence after graceful process termination; it does
@@ -55,5 +55,15 @@ function and SQLite transaction boundary. Inputs become immutable after
 reconciliation. BEGIN IMMEDIATE serializes per-database mutations so repeated
 reconciliation returns the stored result.
 
-Next milestones: browser review flow, broader failure injection, LLM mapping and
+Next milestones: broader failure injection, LLM mapping and
 explanation with separately reported live evaluations.
+
+## Browser verification
+
+```sh
+python -m pip install -r requirements-browser.txt
+python -m playwright install chromium
+python scripts/verify_browser.py
+```
+
+Chromium performs actual upload, mapping correction, review, page reload and CSV download. The downloaded report is compared against the existing independent fixture. Desktop/mobile screenshots and a Playwright trace are saved in evidence/browser. No model API is involved. Each run URL can be reopened on the same service to recover saved work.
