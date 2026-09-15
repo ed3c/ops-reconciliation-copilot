@@ -15,6 +15,7 @@ out = ROOT / "evidence/live-eval.json"
 out.parent.mkdir(exist_ok=True)
 dataset = ROOT / "evals/cases.jsonl"
 report = {"status": "not_run", "live_llm": False, "model": os.environ.get("OPENROUTER_MODEL"),
+          "reasoning_effort": "medium", "max_tokens": 4096,
           "prompt_sha": PROMPT_SHA, "dataset_sha": hashlib.sha256(dataset.read_bytes()).hexdigest(),
           "checkout_sha": subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip(),
           "at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "cases": []}
@@ -43,5 +44,6 @@ report["status"] = "completed"
 report["passed"] = sum(c["passed"] for c in report["cases"])
 report["total"] = len(report["cases"])
 out.write_text(json.dumps(report, indent=2))
+print(json.dumps(report, indent=2))
 print(f"Live smoke evaluation: {report['passed']}/{report['total']}; live_llm={report['live_llm']}")
 sys.exit(0 if report["passed"] == report["total"] else 1)

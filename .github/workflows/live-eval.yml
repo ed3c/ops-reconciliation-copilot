@@ -1,6 +1,13 @@
 name: Live mapping evaluation
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - app/llm.py
+      - app/prompts/**
+      - evals/**
+      - .github/workflows/live-eval.yml
 permissions:
   contents: read
 jobs:
