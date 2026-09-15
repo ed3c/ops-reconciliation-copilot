@@ -5,7 +5,7 @@ The same FastAPI application and browser UI run on Vercel. Local development def
 ## Configure the hosted project
 
 1. Import ed3c/ops-reconciliation-copilot into Vercel, using the repository root and FastAPI framework preset. Python is pinned to 3.12.
-2. Connect a dedicated Neon PostgreSQL database through Vercel Marketplace (or an existing dedicated PostgreSQL database). Set DATABASE_URL in the deployment environment. A pooled provider URL is supported; use the provider's TLS settings.
+2. Connect a dedicated Supabase PostgreSQL database using the [Supabase setup](supabase.md) (Neon or another PostgreSQL provider also works). Set DATABASE_URL in the deployment environment. A pooled provider URL is supported; use the provider's TLS settings.
 3. Initialize the schema once from a trusted shell with DATABASE_URL exported:
 
    ```sh
@@ -13,7 +13,7 @@ The same FastAPI application and browser UI run on Vercel. Local development def
    python scripts/init_db.py
    ```
 
-   The script only creates the runs table if absent. It does not migrate or copy local SQLite data. Do not point it at an unrelated database.
+   The script creates the runs table if absent and enables backend-only database access with RLS and client grant revocation. It does not migrate or copy local SQLite data. Do not point it at an unrelated database.
 4. For optional suggestions, set OPENROUTER_API_KEY and OPENROUTER_MODEL=openai/gpt-5.6-luna in Vercel. GitHub Actions secrets are not automatically Vercel environment variables.
 5. Deploy after setting variables. Keep Vercel Deployment Protection enabled: the application remains a single-user prototype without account-level authorization.
 6. Check /health (process liveness), /ready (database access/schema), then follow [the complete demo](demo.md) on the deployment URL.

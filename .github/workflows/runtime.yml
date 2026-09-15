@@ -60,6 +60,8 @@ jobs:
           cache: pip
       - run: python -m pip install -r requirements.txt
       - run: python scripts/init_db.py
+      - run: python scripts/init_db.py
+      - run: python scripts/verify_db_access.py
       - run: python scripts/verify_runtime.py
       - run: python scripts/verify_postgres.py
       - run: python -m pip install -r requirements-browser.txt
