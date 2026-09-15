@@ -14,16 +14,16 @@ from app.llm import PROMPT_SHA, ProposalError, configured, propose
 out = ROOT / "evidence/live-eval.json"
 out.parent.mkdir(exist_ok=True)
 dataset = ROOT / "evals/cases.jsonl"
-report = {"status": "not_run", "live_llm": False, "model": os.environ.get("ANTHROPIC_MODEL"),
+report = {"status": "not_run", "live_llm": False, "model": os.environ.get("OPENROUTER_MODEL"),
           "prompt_sha": PROMPT_SHA, "dataset_sha": hashlib.sha256(dataset.read_bytes()).hexdigest(),
           "checkout_sha": subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip(),
           "at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "cases": []}
 if not configured():
-    report["reason"] = "ANTHROPIC_API_KEY and ANTHROPIC_MODEL are required"
+    report["reason"] = "OPENROUTER_API_KEY and OPENROUTER_MODEL are required"
     out.write_text(json.dumps(report, indent=2))
     print("NOT RUN: live model configuration missing")
     sys.exit(2)
-if os.environ.get("ANTHROPIC_MESSAGES_URL", "https://api.anthropic.com/v1/messages") != "https://api.anthropic.com/v1/messages":
+if os.environ.get("OPENROUTER_CHAT_URL", "https://openrouter.ai/api/v1/chat/completions") != "https://openrouter.ai/api/v1/chat/completions":
     raise SystemExit("Live evaluation requires the official provider endpoint")
 for line in dataset.read_text().splitlines():
     case = json.loads(line)
