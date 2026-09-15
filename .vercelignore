@@ -1,0 +1,7 @@
+tests/
+evidence/
+docs/
+.github/
+.venv/
+var/
+.env*

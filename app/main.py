@@ -1,11 +1,7 @@
 import csv
 import io
-import json
-import os
-import sqlite3
 import uuid
 from collections import defaultdict
-from contextlib import contextmanager
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -14,31 +10,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 
 app = FastAPI()
-DB = Path(os.environ.get("RECON_DB", "var/reconciliation.sqlite3"))
-
-
-@contextmanager
-def connect():
-    DB.parent.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(DB, timeout=10)
-    db.execute("CREATE TABLE IF NOT EXISTS runs (id TEXT PRIMARY KEY, data TEXT NOT NULL)")
-    db.commit()
-    try:
-        with db:
-            yield db
-    finally:
-        db.close()
-
-
-def read(db, run_id):
-    row = db.execute("SELECT data FROM runs WHERE id=?", (run_id,)).fetchone()
-    if row is None:
-        raise HTTPException(404, "Run not found")
-    return json.loads(row[0])
-
-
-def save(db, run_id, data):
-    db.execute("UPDATE runs SET data=? WHERE id=?", (json.dumps(data), run_id))
+from app.storage import connect
 
 
 def parse(raw):
@@ -116,6 +88,13 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/ready")
+def ready():
+    with connect() as store:
+        store.db.execute("SELECT id FROM runs LIMIT 1")
+    return {"status": "ready"}
+
+
 @app.post("/runs", status_code=201)
 async def create(left: UploadFile = File(...), right: UploadFile = File(...)):
     sources = {}
@@ -126,43 +105,41 @@ async def create(left: UploadFile = File(...), right: UploadFile = File(...)):
         sources[name] = parse(raw)
     run_id = str(uuid.uuid4())
     data = {"id": run_id, "state": "uploaded", "sources": sources, "mapping": None, "findings": [], "reviews": {}}
-    with connect() as db:
-        db.execute("INSERT INTO runs VALUES (?,?)", (run_id, json.dumps(data)))
+    with connect(write=True) as db:
+        db.insert(run_id, data)
     return {"id": run_id}
 
 
 @app.get("/runs/{run_id}")
 def get_run(run_id: str):
     with connect() as db:
-        return read(db, run_id)
+        return db.read(run_id)
 
 
 @app.put("/runs/{run_id}/mapping")
 def set_mapping(run_id: str, mapping: Mapping):
-    with connect() as db:
-        db.execute("BEGIN IMMEDIATE")
-        data = read(db, run_id)
+    with connect(write=True) as db:
+        data = db.read(run_id)
         if data["state"] == "reconciled":
             raise HTTPException(409, "Create a new run to change reconciled inputs")
         value = mapping.model_dump()
         for side in ("left", "right"):
             normalize(data["sources"][side], value[side])
         data.update(mapping=value, state="mapped")
-        save(db, run_id, data)
+        db.save(run_id, data)
     return {"state": "mapped"}
 
 
 @app.post("/runs/{run_id}/reconcile")
 def execute(run_id: str):
-    with connect() as db:
-        db.execute("BEGIN IMMEDIATE")
-        data = read(db, run_id)
+    with connect(write=True) as db:
+        data = db.read(run_id)
         if data["state"] == "uploaded":
             raise HTTPException(409, "Confirm mapping first")
         if data["state"] != "reconciled":
             data["findings"] = reconcile(*[normalize(data["sources"][s], data["mapping"][s]) for s in ("left", "right")])
             data["state"] = "reconciled"
-            save(db, run_id, data)
+            db.save(run_id, data)
     return data["findings"]
 
 
@@ -170,20 +147,19 @@ def execute(run_id: str):
 def review(run_id: str, finding_id: str, value: Review):
     if value.decision not in ("accepted", "rejected"):
         raise HTTPException(422, "Decision must be accepted or rejected")
-    with connect() as db:
-        db.execute("BEGIN IMMEDIATE")
-        data = read(db, run_id)
+    with connect(write=True) as db:
+        data = db.read(run_id)
         if finding_id not in {f["finding_id"] for f in data["findings"]}:
             raise HTTPException(404, "Finding not found")
         data["reviews"][finding_id] = value.model_dump()
-        save(db, run_id, data)
+        db.save(run_id, data)
     return value
 
 
 @app.get("/runs/{run_id}/export")
 def export(run_id: str):
     with connect() as db:
-        data = read(db, run_id)
+        data = db.read(run_id)
     if data["state"] != "reconciled":
         raise HTTPException(409, "Reconcile first")
     out = io.StringIO(newline="")
@@ -209,28 +185,26 @@ def capabilities():
 def mapping_proposal(run_id: str):
     from app.llm import ProposalError, propose
     with connect() as db:
-        data = read(db, run_id)
+        data = db.read(run_id)
     if data["state"] == "reconciled":
         raise HTTPException(409, "This run is already reconciled")
     headers = {side: data["sources"][side]["headers"] for side in ("left", "right")}
     try:
         result = propose(headers)
     except ProposalError as error:
-        with connect() as db:
-            db.execute("BEGIN IMMEDIATE")
-            current = read(db, run_id)
+        with connect(write=True) as db:
+            current = db.read(run_id)
             current["last_proposal_error"] = error.code
-            save(db, run_id, current)
+            db.save(run_id, current)
         raise HTTPException(503 if error.code == "not_configured" else 502,
                             "Suggestions unavailable (" + error.code + "). Select columns manually.")
-    with connect() as db:
-        db.execute("BEGIN IMMEDIATE")
-        current = read(db, run_id)
+    with connect(write=True) as db:
+        current = db.read(run_id)
         if current["state"] == "reconciled":
             raise HTTPException(409, "Run reconciled while proposal was pending")
         current["mapping_proposal"] = result
         current.pop("last_proposal_error", None)
-        save(db, run_id, current)
+        db.save(run_id, current)
     return result
 
 # Mount last so API routes keep their existing ownership.

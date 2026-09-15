@@ -26,6 +26,10 @@ python -m uvicorn app.main:app
 Open http://127.0.0.1:8000 for the browser workspace, or /docs for the interactive API.
 The database defaults to var/reconciliation.sqlite3; override RECON_DB if needed.
 
+## Deploy on Vercel
+
+See [hosted setup and verification](docs/vercel.md). Hosted deployments require PostgreSQL; local SQLite files are not used on Vercel.
+
 ## Verify
 
 ```sh
@@ -52,8 +56,8 @@ model API secrets. Do not upload private data to public CI artifacts.
 
 ## Architecture
 
-app/main.py contains the initial HTTP endpoints, validation, pure reconciliation
-function and SQLite transaction boundary. Inputs become immutable after
+app/main.py contains HTTP endpoints, validation and the pure reconciliation
+function. app/storage.py owns SQLite/PostgreSQL transaction boundaries. Inputs become immutable after
 reconciliation. BEGIN IMMEDIATE serializes per-database mutations so repeated
 reconciliation returns the stored result.
 
@@ -79,7 +83,7 @@ Source: https://openrouter.ai/docs/api/reference/overview
 
 ## Model evidence
 
-PR CI runs 9 contract tests and real HTTP/browser integration against a LOCAL FAKE provider. These are integration evidence, not model-quality scores. Run locally with:
+PR CI runs contract tests and real HTTP/browser integration against a LOCAL FAKE provider. These are integration evidence, not model-quality scores. Run locally with:
 
 ```sh
 python -m unittest discover -s tests -p 'test_*.py' -v
