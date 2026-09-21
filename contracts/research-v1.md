@@ -12,7 +12,7 @@ currency for each side. State contains only headers, never CSV records, customer
 identities, holdings or account credentials. Options are indexed observed headers
 plus `insufficient_evidence`; no free-text generation is needed. Validate all
 answers, even when an earlier answer abstains. Non-finite/boolean probabilities,
-wrong option sets, bad sums, non-maximal choices, invalid usage, duplicate mapped
+wrong option sets, impossible sums, non-maximal choices, invalid usage, duplicate mapped
 columns and response-model drift are rejected. Missing/ambiguous or low-probability
 answers yield `clarify` with no mapping. Both 0.9 thresholds are experimental,
 not calibrated claims or execution permission. Fixed clarification text is ours.
@@ -45,19 +45,53 @@ does not fabricate answers/accuracy. Each invocation writes a new directory unde
 ignored `evidence/research/`; stdout names the report. Keep evidence private until
 reviewed. Test transports are synthetic and never count as live results.
 
-Optional later live experiment, with explicit cost/data authorization:
+Explicit live experiment, limited to the four synthetic cases:
 
 ```sh
-# Set TYPESAFE_API_KEY through your secret manager, never in Git or chat.
-# TYPESAFE_MODEL defaults to the explicit version jev-1.13.0, not a moving alias.
+# Set AI_GATEWAY_API_KEY through your secret manager, never in Git or chat.
 python scripts/research.py live
+# Optional separately billed direct provider, no automatic fallback:
+python scripts/research.py live --provider typesafe
 ```
 
-Only `https://api.typesafe.ai/v1/systemone` is allowed; redirects are refused.
+Vercel is the default provider, including offline request validation. It uses
+`https://ai-gateway.vercel.sh/typesafe/v1/systemone` and `typesafe-ai/jev`.
+The Gateway slug is an alias, NOT an immutable upstream model version; receipts
+explicitly record `immutable_model_version=false`. Require matching response
+model identity, preserve raw provider metadata/usage/cost when supplied, and do
+not fabricate the underlying version or zero billing. No OIDC token extraction
+or new Node service is needed: this stdlib client uses `AI_GATEWAY_API_KEY`.
+
+The official model page checked 2026-09-21 says promotional pricing ends
+2026-09-25 without an exact time/timezone. The Gateway catalog simultaneously
+reports the regular $0.042/M input rate. Treat that as catalog list price, not
+a proof of promotional billing. This research client conservatively refuses
+Vercel live calls starting 2026-09-25 00:00 UTC (`promotion_review_required`),
+pending a reviewed pricing decision. That cutoff is our policy, not a claim
+about the provider's exact billing switch. Avoid provider BYOK for this trial;
+it may bill the provider directly. Offline remains usable after the cutoff.
+
+Explicit `--provider typesafe` retains the fixed direct endpoint
+`https://api.typesafe.ai/v1/systemone`, separate `TYPESAFE_API_KEY`, and pinned
+`TYPESAFE_MODEL` (default `jev-1.13.0`). Provider/model mismatches fail before
+transport. No retries, redirects, automatic paid fallback or key sharing.
+
+`--provider openrouter` reserves the adapter boundary and exits 2/not_run with
+`openrouter_jev_not_supported`, even if an OpenRouter key exists. No verified
+Jev entry was found in its public catalog on 2026-09-21. Do not substitute a
+Jev slug into Chat Completions. The existing production `app.llm` OpenRouter
+mapping path is unchanged and is not a Jev fallback.
+
+Gateway documents probabilities rounded to two decimal places. Its validation
+accepts a sum only if per-option rounding intervals could contain a normalized
+distribution; it never renormalizes or overwrites the returned probabilities.
+Direct TypeSafe retains the existing exact-sum tolerance. Confidence measures
+distribution concentration; the thresholds do not establish domain calibration.
+
 At most four calls, six questions per call, 64 KiB request/response caps, 45-second
 socket timeout, no application retry. Socket timeout is not a total wall-clock SLA;
 the CI job has a separate time bound. This is not a global spending cap. Missing
-key or invalid version exits 2/not_run before transport. Transport/validation
+key, unsupported provider, expired trial or invalid model exits 2/not_run before transport. Transport/validation
 failure stops the batch (exit 1 after an attempted call); do not label it accurate
 or silently switch providers. A completed live batch exits 1 on label mismatch.
 
@@ -92,3 +126,10 @@ Roadmap: [docs/research-roadmap.md](../docs/research-roadmap.md) (N-class).
 Soodles currently cannot admit this repository. Cross-repo support requires a
 separate Soodles-owned causal atom, not a local bypass or copied scheduler.
 No RPC/wallet/order interface is present; there is no `live trading` flag to enable.
+
+## Gateway sources (checked 2026-09-21)
+
+- [Jev promotion](https://vercel.com/ai-gateway/models/jev)
+- [TypeSafe-compatible API](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe)
+- [Evaluation semantics and rounding](https://vercel.com/kb/guide/typesafe-jev-and-ai-sdk)
+- [OpenRouter catalog](https://openrouter.ai/api/v1/models)

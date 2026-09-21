@@ -12,12 +12,14 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from app.llm import ProposalError
-from research.jev import build_request, decode_response, digest, evaluate_live
+from research.jev import build_request, check_live, decode_response, digest, evaluate_live, provider_config
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", nargs="?", choices=("offline", "live"), default="offline")
+    parser.add_argument("--provider", choices=("vercel", "typesafe", "openrouter"), default="vercel",
+                        help="Vercel by default; OpenRouter is reserved and refuses without transport")
     args = parser.parse_args(argv)
     dataset = ROOT / "evals/cases.jsonl"
     raw = dataset.read_bytes()
@@ -25,11 +27,11 @@ def main(argv=None):
     # Fixed smoke suite; expanding paid-call scope requires a reviewed change.
     if len(cases) != 4 or len({c["id"] for c in cases}) != 4:
         raise SystemExit("Expected exactly four unique synthetic cases")
-    model = os.environ.get("TYPESAFE_MODEL", "jev-1.13.0")
     report = {"schema": 1, "mode": args.mode, "status": "not_run", "live_provider": False,
               "authorizes_execution": False, "authorizes_landing": False,
               "at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-              "dataset_sha256": hashlib.sha256(raw).hexdigest(), "requested_model": model,
+              "dataset_sha256": hashlib.sha256(raw).hexdigest(), "provider": args.provider,
+              "requested_model": None, "immutable_model_version": args.provider == "typesafe",
               "checkout_sha": subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
                                               capture_output=True, text=True).stdout.strip(),
               "working_tree_dirty": bool(subprocess.run(["git", "status", "--porcelain"], cwd=ROOT,
@@ -39,16 +41,18 @@ def main(argv=None):
               "requests_attempted": 0, "cases": []}
     exit_code = 0
     try:
+        model, api_key = provider_config(args.provider, os.environ)
+        report["requested_model"] = model
         requests = [build_request(c["headers"], model) for c in cases]
-        if args.mode == "live" and not os.environ.get("TYPESAFE_API_KEY"):
-            raise ProposalError("not_configured")
+        if args.mode == "live":
+            check_live(args.provider, api_key)
         for case, request in zip(cases, requests):
             item = {"id": case["id"], "request_sha256": digest(request),
                     "questions": len(request["questions"])}
             report["cases"].append(item)
             if args.mode == "live":
                 report["requests_attempted"] += 1
-                result = evaluate_live(request, os.environ["TYPESAFE_API_KEY"])
+                result = evaluate_live(request, api_key, args.provider)
                 report["live_provider"] = True
                 # Revalidate in the consumer; transport success is not verdict success.
                 actual = decode_response(result["response"], request)

@@ -6,7 +6,7 @@
 
 [設計脈絡與技術文章計畫：CONTEXT.md](CONTEXT.md) — 目前為 Stage 0；按問題、決策、runtime、成本與驗證逐階段展開。
 
-[Jev 研究入口](contracts/research-v1.md) · [分階段發展計畫](docs/research-roadmap.md)
+[Jev 研究入口：Vercel 優先、OpenRouter 預留](contracts/research-v1.md) · [分階段發展計畫](docs/research-roadmap.md)
 — #21 新增隔離的 header-only 實驗；`python scripts/research.py` 預設不連網，
 不更換線上模型、不改 mapping／對帳、不執行交易。Live 準確率仍須另外量測。
 

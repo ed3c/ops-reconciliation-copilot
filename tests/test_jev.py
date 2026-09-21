@@ -1,5 +1,6 @@
 """Synthetic transport/decision controls, NOT live-model accuracy evidence."""
 import copy
+import datetime
 import json
 import math
 import os
@@ -11,7 +12,8 @@ from unittest.mock import patch
 import urllib.error
 
 from app.llm import ProposalError
-from research.jev import ABSTAIN, ENDPOINT, build_request, decode_response, evaluate_live
+from research.jev import (ABSTAIN, ENDPOINT, GATEWAY_ENDPOINT, GATEWAY_MODEL,
+                          build_request, decode_response, evaluate_live, provider_config)
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL = "jev-1.13.0"
@@ -50,7 +52,7 @@ class JevTests(unittest.TestCase):
         self.assertEqual(headers, HEADERS)
 
     def test_header_validation_and_model_pin(self):
-        for model in ("jev-latest", "jev-preview", "typesafe-ai/jev", None):
+        for model in ("jev-latest", "jev-preview", "typesafe-ai/unknown", None):
             with self.subTest(model=model), self.assertRaises(ProposalError):
                 build_request(HEADERS, model)
         for bad in ({}, {**HEADERS, "rows": [{"secret": "private"}]},
@@ -160,7 +162,7 @@ class JevTests(unittest.TestCase):
                 evaluate_live(self.request, "synthetic-test-key")
 
     def test_cli_missing_key_has_no_live_claim(self):
-        env = {k: v for k, v in os.environ.items() if k not in {"TYPESAFE_API_KEY", "TYPESAFE_MODEL"}}
+        env = {k: v for k, v in os.environ.items() if k not in {"AI_GATEWAY_API_KEY", "TYPESAFE_API_KEY", "TYPESAFE_MODEL"}}
         result = subprocess.run([sys.executable, "scripts/research.py", "live"], cwd=ROOT,
                                 env=env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 2, result.stderr)
@@ -173,9 +175,78 @@ class JevTests(unittest.TestCase):
     @patch("research.jev.urllib.request.build_opener", side_effect=AssertionError("offline network"))
     def test_offline_is_no_network_even_with_key(self, build):
         from scripts.research import main
-        with patch.dict(os.environ, {"TYPESAFE_API_KEY": "synthetic", "TYPESAFE_MODEL": MODEL}):
+        with patch.dict(os.environ, {"AI_GATEWAY_API_KEY": "synthetic", "TYPESAFE_MODEL": MODEL}):
             self.assertEqual(main([]), 0)
         build.assert_not_called()
+
+    @patch("research.jev.datetime.datetime")
+    @patch("research.jev.urllib.request.build_opener")
+    def test_gateway_transport_alias_and_raw_metadata(self, build, clock):
+        from research.jev import PROMOTION_REVIEW_AT
+        clock.now.return_value = PROMOTION_REVIEW_AT - datetime.timedelta(days=4)
+        request = build_request(HEADERS, GATEWAY_MODEL)
+        response = {**fixture(), "model": GATEWAY_MODEL,
+                    "provider_metadata": {"gateway": {"cost": "0", "generationId": "synthetic"}}}
+        build.return_value.open.return_value.__enter__.return_value.read.return_value = json.dumps(response).encode()
+        result = evaluate_live(request, "gateway-only", "vercel")
+        sent = build.return_value.open.call_args.args[0]
+        self.assertEqual(sent.full_url, GATEWAY_ENDPOINT)
+        self.assertEqual(sent.get_header("Authorization"), "Bearer gateway-only")
+        self.assertEqual(json.loads(sent.data), request)
+        self.assertEqual(result["proposal"], EXPECTED)
+        self.assertEqual(result["response"], response)
+        self.assertFalse(result["immutable_model_version"])
+        self.assertEqual(build.return_value.open.call_count, 1)
+
+    def test_provider_keys_are_not_interchangeable(self):
+        env = {"AI_GATEWAY_API_KEY": "gateway", "TYPESAFE_API_KEY": "direct", "OPENROUTER_API_KEY": "other"}
+        self.assertEqual(provider_config("vercel", env), (GATEWAY_MODEL, "gateway"))
+        self.assertEqual(provider_config("typesafe", env), (MODEL, "direct"))
+        self.assertEqual(provider_config("vercel", {"OPENROUTER_API_KEY": "other"}), (GATEWAY_MODEL, ""))
+
+    @patch("research.jev.urllib.request.build_opener")
+    def test_reserved_openrouter_is_no_transport(self, build):
+        from scripts.research import main
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": "synthetic"}):
+            self.assertEqual(main(["live", "--provider", "openrouter"]), 2)
+        with self.assertRaisesRegex(ProposalError, "openrouter_jev_not_supported"):
+            evaluate_live(self.request, "synthetic", "openrouter")
+        build.assert_not_called()
+
+    @patch("research.jev.datetime.datetime")
+    @patch("research.jev.urllib.request.build_opener")
+    def test_promotion_cutoff_refuses_without_transport(self, build, clock):
+        from scripts.research import main
+        from research.jev import PROMOTION_REVIEW_AT
+        clock.now.return_value = PROMOTION_REVIEW_AT
+        with patch.dict(os.environ, {"AI_GATEWAY_API_KEY": "synthetic"}):
+            self.assertEqual(main(["live"]), 2)
+        build.assert_not_called()
+
+    def test_gateway_rounding_preserves_values_and_rejects_bad_sum(self):
+        request = build_request(HEADERS, GATEWAY_MODEL)
+        response = {**fixture(), "model": GATEWAY_MODEL}
+        answer = response["answers"]["left_transaction_id"]
+        answer["probabilities"] = {"column_0": .95, "column_1": .02, "column_2": .01, ABSTAIN: .01}
+        before = copy.deepcopy(response)
+        self.assertEqual(decode_response(response, request), EXPECTED)
+        self.assertEqual(response, before)
+        answer["probabilities"]["column_0"] = .5
+        with self.assertRaisesRegex(ProposalError, "invalid_distribution"):
+            decode_response(response, request)
+
+    @patch("research.jev.datetime.datetime")
+    @patch("research.jev.urllib.request.build_opener")
+    def test_gateway_mismatch_and_failure_never_fall_back(self, build, clock):
+        from research.jev import PROMOTION_REVIEW_AT
+        clock.now.return_value = PROMOTION_REVIEW_AT - datetime.timedelta(days=1)
+        with self.assertRaisesRegex(ProposalError, "provider_model_mismatch"):
+            evaluate_live(self.request, "synthetic", "vercel")
+        build.assert_not_called()
+        build.return_value.open.side_effect = urllib.error.HTTPError(GATEWAY_ENDPOINT, 429, "rate", {}, None)
+        with self.assertRaisesRegex(ProposalError, "provider_http_error"):
+            evaluate_live(build_request(HEADERS, GATEWAY_MODEL), "synthetic", "vercel")
+        self.assertEqual(build.return_value.open.call_count, 1)
 
 
 if __name__ == "__main__":

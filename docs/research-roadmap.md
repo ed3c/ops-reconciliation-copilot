@@ -59,11 +59,14 @@ transitions. Low confidence or missing evidence escalates; high confidence does
 not certify correctness. An evidence classifier must never attest that its own
 trade succeeded. Trace/provider readback and ledger facts own that conclusion.
 
-The first experiment uses the direct Python HTTP API to avoid introducing Node
-and an experimental SDK into this Python repository. Native TypeSafe uses
-`choice`/`noul`/`score`; Vercel's evaluation surface has a distinct adapter contract.
-Gateway integration is optional later, not a model ID substituted into the
-existing OpenRouter Chat Completions transport.
+The first experiment defaults to Vercel's TypeSafe-compatible HTTP endpoint
+from Python, using `AI_GATEWAY_API_KEY` and the `typesafe-ai/jev` alias. No Node
+service or experimental SDK is required. Direct TypeSafe remains explicit.
+The free promotion ends September 25, 2026; the CLI conservatively pauses on
+that date pending price review. OpenRouter is reserved, not working Jev support:
+its public catalog had no verified Jev model on September 21. Existing production
+OpenRouter mapping remains unchanged. See the research contract for exact
+endpoint, model-identity, rounding, cost and failure boundaries.
 
 ## On-chain US-equity boundary
 
