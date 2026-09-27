@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "course-guide": {
+      "source": "rohitg00/ai-engineering-from-scratch",
+      "sourceType": "github",
+      "skillPath": "skills/course-guide/SKILL.md",
+      "computedHash": "17f5c2f6040cbe7cf989f91db0247414ddfdd5e0400efa9cbb7868541a63342b"
+    }
+  }
+}

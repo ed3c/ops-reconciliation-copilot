@@ -66,7 +66,7 @@ flowchart TD
 - 評估 checkout：78ea5882fa996cf9ef4c900bcc53cd79911b7a7a。
 - 四次呼叫合計 **1,038 tokens**：830 prompt、208 completion。
 - 單次 client-observed latency：**1,184–2,131 ms**。
-- Runner 對 proposed 比對完整 mapping；對 clarify 僅比對 status，不評分問題品質。
+- Runner 對 proposed 比對完整 mapping；對 clarify 僅比對 status，不評分問題品質。[Evidence-scope audit 與人類判斷檢查點](docs/evidence-scope-checkpoint.md)會重新計分歷史報告，並分開呈現這兩種通過範圍。
 
 **4/4 是四個固定案例的 smoke coverage。** 尚無代表性企業資料集、模型比較、任務時間改善或貨幣成本量測，不能據此推導企業準確率或 p95。
 
