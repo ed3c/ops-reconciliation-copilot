@@ -1,0 +1,33 @@
+{
+  "schema_version": "ops-learning-experiment-template@1",
+  "id": "fine-tuning",
+  "title": "Fine-tuning / LoRA Decision",
+  "category": "Post-training",
+  "curriculum": [
+    "Phase 11 · LLM Engineering"
+  ],
+  "question": "Prompt/base-model approaches 是否有穩定、可重現的 domain gap，值得做 fine-tuning experiment？",
+  "trigger": "固定 eval 顯示 repeated domain-specific error that prompting/model routing cannot resolve economically",
+  "product_change": "EXPERIMENT_OR_NO_CHANGE",
+  "baseline": [
+    "pin dataset split",
+    "pin base model/prompt",
+    "measure current eval"
+  ],
+  "treatment": [
+    "isolated SFT/LoRA/QLoRA experiment"
+  ],
+  "evidence": [
+    "dataset provenance",
+    "train config",
+    "base/tuned eval",
+    "cost/latency",
+    "regression cases"
+  ],
+  "outcomes": [
+    "EXPERIMENT",
+    "NO_CHANGE",
+    "PROMOTE_CANDIDATE"
+  ],
+  "promotion_gate": "Tuned model never replaces production automatically; product owner reviews need, quality and serving cost."
+}

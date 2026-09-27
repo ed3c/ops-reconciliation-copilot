@@ -1,0 +1,17 @@
+{
+  "schema_version": "ops-learning-experiment-template@1",
+  "required": [
+    "id",
+    "title",
+    "category",
+    "curriculum",
+    "question",
+    "trigger",
+    "product_change",
+    "baseline",
+    "treatment",
+    "evidence",
+    "outcomes",
+    "promotion_gate"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "schema_version": "ops-learning-experiment-template@1",
+  "id": "eval-scope-audit",
+  "title": "Eval Scope Audit",
+  "category": "Evals",
+  "curriculum": [
+    "Phase 11 · LLM Engineering",
+    "Product Judgment and Delivery"
+  ],
+  "question": "現有 PASS 結果實際證明了什麼，哪些能力沒有被測到？",
+  "trigger": "已有 eval/result，但 conclusion scope 可能強於 evidence",
+  "product_change": "NO_RUNTIME_CHANGE_REQUIRED",
+  "baseline": [
+    "pin historical report",
+    "pin cases and evaluator logic"
+  ],
+  "treatment": [
+    "classify each case by the capability actually tested"
+  ],
+  "evidence": [
+    "report identity",
+    "case taxonomy",
+    "evaluator identity",
+    "scope limits",
+    "human checkpoint"
+  ],
+  "outcomes": [
+    "SCOPE_CORRECTED",
+    "NO_CHANGE",
+    "FOLLOWUP_EXPERIMENT"
+  ],
+  "promotion_gate": "This template never authorizes product promotion by itself."
+}

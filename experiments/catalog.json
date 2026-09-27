@@ -1,0 +1,67 @@
+{
+  "schema_version": "ops-learning-experiment-catalog@1",
+  "provider": "ed3c/ops-reconciliation-copilot",
+  "source_revision": "24a56d18661630b0dba97dcb0b057dce07b0ab32",
+  "principle": "Curriculum selects what capability to study; Ops physical truth decides EXPERIMENT or NO_CHANGE; product promotion is a separate decision.",
+  "templates": [
+    {
+      "id": "prompt-change",
+      "title": "Prompt Change Experiment",
+      "category": "LLM Engineering",
+      "curriculum": [
+        "Phase 11 · LLM Engineering"
+      ],
+      "path": "experiments/templates/prompt-change.json"
+    },
+    {
+      "id": "eval-scope-audit",
+      "title": "Eval Scope Audit",
+      "category": "Evals",
+      "curriculum": [
+        "Phase 11 · LLM Engineering",
+        "Product Judgment and Delivery"
+      ],
+      "path": "experiments/templates/eval-scope-audit.json"
+    },
+    {
+      "id": "rag-need",
+      "title": "RAG Need Decision",
+      "category": "RAG",
+      "curriculum": [
+        "Phase 11 · LLM Engineering"
+      ],
+      "path": "experiments/templates/rag-need.json"
+    },
+    {
+      "id": "agent-workflow",
+      "title": "Agent Workflow Decision",
+      "category": "Agent Engineering",
+      "curriculum": [
+        "Phase 14 · Agent Engineering"
+      ],
+      "path": "experiments/templates/agent-workflow.json"
+    },
+    {
+      "id": "fine-tuning",
+      "title": "Fine-tuning / LoRA Decision",
+      "category": "Post-training",
+      "curriculum": [
+        "Phase 11 · LLM Engineering"
+      ],
+      "path": "experiments/templates/fine-tuning.json"
+    }
+  ],
+  "examples": [
+    {
+      "id": "live-smoke-evidence-scope",
+      "template_id": "eval-scope-audit",
+      "status": "HISTORICAL_EVIDENCE_ONLY",
+      "evidence": [
+        "docs/evidence/2026-09-15-luna-medium.json",
+        "evals/cases.jsonl",
+        "evals/run.py"
+      ],
+      "note": "4/4 historical smoke is useful evidence, not representative product correctness."
+    }
+  ]
+}
