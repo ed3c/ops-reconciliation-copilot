@@ -1,0 +1,33 @@
+{
+  "schema_version": "ops-learning-experiment-template@1",
+  "id": "prompt-change",
+  "title": "Prompt Change Experiment",
+  "category": "LLM Engineering",
+  "curriculum": [
+    "Phase 11 · LLM Engineering"
+  ],
+  "question": "A bounded prompt change 是否改善 mapping 行為且不破壞既有 case？",
+  "trigger": "有可觀察的 prompt-sensitive failure 或明確 hypothesis",
+  "product_change": "EXPERIMENT_FIRST",
+  "baseline": [
+    "pin prompt/model/cases",
+    "record current outputs and eval receipt"
+  ],
+  "treatment": [
+    "change exactly one prompt decision surface"
+  ],
+  "evidence": [
+    "prompt identity",
+    "case identities",
+    "before/after outputs",
+    "eval result",
+    "runtime metadata",
+    "human explanation"
+  ],
+  "outcomes": [
+    "KEEP_EXPERIMENT",
+    "NO_CHANGE",
+    "PROMOTE_CANDIDATE"
+  ],
+  "promotion_gate": "Only after measured improvement plus a real product need."
+}

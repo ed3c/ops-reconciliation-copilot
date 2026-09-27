@@ -1,0 +1,32 @@
+{
+  "schema_version": "ops-learning-experiment-template@1",
+  "id": "rag-need",
+  "title": "RAG Need Decision",
+  "category": "RAG",
+  "curriculum": [
+    "Phase 11 · LLM Engineering"
+  ],
+  "question": "產品是否真的存在 external knowledge dependency，值得建立 retrieval experiment？",
+  "trigger": "答案品質受外部、可更新或私有知識取得限制",
+  "product_change": "EXPERIMENT_OR_NO_CHANGE",
+  "baseline": [
+    "identify failing information need",
+    "show current model/context limitation"
+  ],
+  "treatment": [
+    "bounded retrieval experiment; do not add vector DB to canonical path first"
+  ],
+  "evidence": [
+    "failure example",
+    "retrieved source identity",
+    "answer difference",
+    "latency/cost",
+    "citation fidelity"
+  ],
+  "outcomes": [
+    "EXPERIMENT",
+    "NO_CHANGE",
+    "PROMOTE_CANDIDATE"
+  ],
+  "promotion_gate": "Promotion requires repeated product need and evidence beyond the isolated lab."
+}

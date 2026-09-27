@@ -1,0 +1,32 @@
+{
+  "schema_version": "ops-learning-experiment-template@1",
+  "id": "agent-workflow",
+  "title": "Agent Workflow Decision",
+  "category": "Agent Engineering",
+  "curriculum": [
+    "Phase 14 · Agent Engineering"
+  ],
+  "question": "固定 workflow 是否已出現需要 dynamic tool/next-action choice 的真實 decision barrier？",
+  "trigger": "多步工具選擇或 recovery 不能由 deterministic owner 直接決定",
+  "product_change": "EXPERIMENT_OR_NO_CHANGE",
+  "baseline": [
+    "map current deterministic workflow",
+    "identify the exact dynamic decision"
+  ],
+  "treatment": [
+    "isolate one agent decision while deterministic owners keep transition authority"
+  ],
+  "evidence": [
+    "task packet",
+    "tool calls",
+    "owner outputs",
+    "wrong-route attempts",
+    "completion/stop reason"
+  ],
+  "outcomes": [
+    "EXPERIMENT",
+    "NO_CHANGE",
+    "PROMOTE_CANDIDATE"
+  ],
+  "promotion_gate": "Agent behavior must improve a real workflow without replacing mechanical owner truth."
+}
