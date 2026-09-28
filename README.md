@@ -2,11 +2,21 @@
 
 以 LLM 對應兩份 CSV 的欄位名稱，再由 Python 執行確定性的交易比對與金額計算。
 
+另有一條明確選擇的 **batch settlement** 流程：多筆正數 expected payments 以相同 batch reference 對應一筆正數 bank deposit。此流程不使用 LLM 猜測批次或自動批准差異。業界確有一筆銀行交易對應多筆預期付款的對帳型態，見 [Modern Treasury 的 matching strategies](https://docs.moderntreasury.com/payments/docs/defining-reconciliation-rules)；這裡的 CSV 是合成的、明確定義的教學格式，不宣稱支援該平台或銀行的原始報表。
+
 [公開展示網站](https://ops-reconciliation-copilot.vercel.app/) · [工作區](https://ops-reconciliation-copilot.vercel.app/workspace) · [Runtime CI](https://github.com/ed3c/ops-reconciliation-copilot/actions/runs/34960696258) · [真實模型評估](docs/evidence/2026-09-15-luna-medium.json)
 
 [設計脈絡與技術文章計畫：CONTEXT.md](CONTEXT.md) — 目前為 Stage 0；按問題、決策、runtime、成本與驗證逐階段展開。
 
 Python · FastAPI · OpenRouter · PostgreSQL / Supabase · Vercel · GitHub Actions
+
+## Batch settlement：第二個真實業務任務
+
+在 `/workspace` 選擇 **Expected payments to bank deposits**，左側上傳含 `batch_id`、唯一 `payment_id`、`amount`、`currency` 的預期付款 CSV，右側上傳含 `batch_id`、`amount`、`currency` 的銀行入帳 CSV。實際欄名由使用者映射。每筆金額必須為正數、至多兩位小數；同一 batch 只接受同幣別的預期付款，且僅一筆銀行入帳。對每個精確相同的 batch reference，程式比較 `sum(expected.amount)` 與 `bank.amount`，相等時保存付款 ID 和銀行來源列為 `matched_batches`；否則產生有來源列的 finding。缺少任一側、同批次多筆銀行入帳或混合幣別均保留為例外，不能自動標記 matched。
+
+這條流程不處理 fees、refunds、chargebacks、reserve、外匯、日期容忍、部分付款或模糊配對；它們在實際 payout 報表中可能影響金額，見 [Adyen payout reconciliation](https://docs.adyen.com/platforms/payout-reconciliation)。本流程只有使用者已確認正數 expected payments 和單一 bank deposit 的明確分組，不能拿來核對一般 payout net settlement。原本的交易 ID 一對一比較是預設模式且行為不變；batch 模式的模型提議明確拒絕，避免把僅支援三欄的 prompt 套用到新契約。
+
+`tests/fixtures/batch-expected.csv`、`batch-bank.csv` 和獨立預期值供 `scripts/verify_runtime.py` 的真實 HTTP 驗證使用。它驗證一個多付款相加的成功批次、金額差異、缺失兩側、重複銀行列、重複付款 ID、混合幣別及相同金額但不同 batch reference 的拒絕。合成資料與本地驗證不代表企業使用或正式站完整流程已完成。
 
 公開首頁是固定的合成資料範例，不會呼叫模型。真實模型證據來自獨立執行的評估報告；目前尚未完成正式站 Google 登入搭配真實模型的完整瀏覽器驗證。
 

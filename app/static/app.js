@@ -1,6 +1,20 @@
 const $ = (id) => document.getElementById(id);
 let run;
-const fields = ["transaction_id", "amount", "currency"];
+const transactionFields = ["transaction_id", "amount", "currency"];
+const batchFields = {left: ["batch_id", "payment_id", "amount", "currency"], right: ["batch_id", "amount", "currency"]};
+let suggestionsConfigured = false;
+const fieldsFor = (side) => run.mode === "batch" ? batchFields[side] : transactionFields;
+function modeNotes() {
+  const batch = $("mode").value === "batch";
+  $("mode-note").textContent = batch
+    ? "Left: positive expected payments. Right: one positive bank deposit per explicit batch reference. Fees, refunds and inferred matches are outside this comparison."
+    : "Compare one transaction ID on each side.";
+  $("mapping-note").textContent = batch
+    ? "Map batch ID, payment ID, amount and currency on the left; batch ID, amount and currency on the right. Confirm each source column."
+    : "Choose the transaction ID, amount and currency in each file. IDs are matched exactly.";
+  $("suggest").hidden = !suggestionsConfigured || batch;
+}
+$("mode").addEventListener("change", modeNotes);
 async function api(path, method = "GET", body) {
   const options = {method, headers: {"X-Recon-Request": "1"}};
   if (body instanceof FormData) options.body = body;
@@ -33,12 +47,14 @@ function node(tag, text, parent) {
 }
 async function refresh() {
   run = await api("/runs/" + encodeURIComponent(run.id));
+  $("mode").value = run.mode || "transaction";
+  modeNotes();
   $("mapping-panel").hidden = run.state === "reconciled";
   $("columns").replaceChildren();
   for (const side of ["left", "right"]) {
     const group = node("div", undefined, $("columns"));
     node("h3", side === "left" ? "Left file" : "Right file", group);
-    for (const field of fields) {
+    for (const field of fieldsFor(side)) {
       const label = node("label", side + " " + field, group);
       const select = node("select", undefined, label);
       select.id = side + "-" + field;
@@ -51,13 +67,14 @@ async function refresh() {
   }
   $("results").hidden = run.state !== "reconciled";
   if (run.state !== "reconciled") return;
-  $("summary").textContent = run.findings.length + " differences found";
+  $("summary").textContent = (run.mode === "batch" ? (run.matched_batches?.length || 0) + " matched batches · " : "")
+    + run.findings.length + " differences found";
   $("export").href = "/runs/" + encodeURIComponent(run.id) + "/export";
   $("findings").replaceChildren();
   for (const finding of run.findings) {
     const card = node("article", undefined, $("findings"));
     card.className = "finding";
-    node("h3", finding.finding_id + " · " + finding.transaction_id, card);
+    node("h3", finding.finding_id + " · " + (finding.batch_id || finding.transaction_id), card);
     node("p", finding.type + (finding.delta !== null ? " · Difference: " + finding.delta : ""), card);
     const sources = node("div", "Left: " + JSON.stringify(finding.left) + "\nRight: " + JSON.stringify(finding.right), card);
     sources.className = "sources";
@@ -85,7 +102,7 @@ async function refresh() {
 $("upload").addEventListener("submit", event => {
   event.preventDefault();
   action(event.submitter, async () => {
-    run = await api("/runs", "POST", new FormData(event.target));
+    run = await api("/runs?mode=" + encodeURIComponent($("mode").value), "POST", new FormData(event.target));
     $("suggestion-note").textContent = "";
     history.replaceState(null, "", "?run=" + encodeURIComponent(run.id));
     await refresh();
@@ -96,7 +113,7 @@ $("mapping").addEventListener("submit", event => {
   event.preventDefault();
   action(event.submitter, async () => {
     const mapping = {};
-    for (const side of ["left", "right"]) mapping[side] = Object.fromEntries(fields.map(field => [field, $(side + "-" + field).value]));
+    for (const side of ["left", "right"]) mapping[side] = Object.fromEntries(fieldsFor(side).map(field => [field, $(side + "-" + field).value]));
     await api("/runs/" + run.id + "/mapping", "PUT", mapping);
     await api("/runs/" + run.id + "/reconcile", "POST");
     await refresh();
@@ -116,7 +133,8 @@ if (id) {
 }
 
 api("/capabilities").then(value => {
-  $("suggest").hidden = !value.mapping_suggestions;
+  suggestionsConfigured = value.mapping_suggestions;
+  modeNotes();
 }).catch(() => {});
 $("suggest").addEventListener("click", event => {
   const runId = run.id;
@@ -128,7 +146,7 @@ $("suggest").addEventListener("click", event => {
       $("suggestion-note").textContent = proposal.question;
       return;
     }
-    for (const side of ["left", "right"]) for (const field of fields) {
+    for (const side of ["left", "right"]) for (const field of fieldsFor(side)) {
       $(side + "-" + field).value = proposal.mapping[side][field];
     }
     $("suggestion-note").textContent = "Suggested columns are ready. Check them before confirming.";

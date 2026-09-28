@@ -4,6 +4,7 @@ import uuid
 from collections import defaultdict
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response
@@ -88,6 +89,67 @@ def reconcile(left, right):
     return findings
 
 
+BATCH_FIELDS = {"left": {"batch_id", "payment_id", "amount", "currency"},
+                "right": {"batch_id", "amount", "currency"}}
+
+
+def normalize_batch(source, mapping, side):
+    required = BATCH_FIELDS[side]
+    if set(mapping) != required or len(set(mapping.values())) != len(required) or not set(mapping.values()) <= set(source["headers"]):
+        raise HTTPException(422, f"Map distinct existing {side} batch columns: {', '.join(sorted(required))}")
+    result = defaultdict(list)
+    payment_ids = set()
+    for line, row in enumerate(source["rows"], 2):
+        batch_id = row[mapping["batch_id"]].strip()
+        currency = row[mapping["currency"]].strip().upper()
+        try:
+            amount = Decimal(row[mapping["amount"]])
+            if not amount.is_finite() or amount <= 0 or amount > Decimal("1e15") or amount != amount.quantize(Decimal(".01")):
+                raise ValueError()
+        except (InvalidOperation, ValueError):
+            raise HTTPException(422, f"Invalid positive two-decimal amount at row {line}")
+        if (not batch_id or len(currency) != 3 or not currency.isascii() or not currency.isalpha()):
+            raise HTTPException(422, f"Invalid batch ID or currency at row {line}")
+        item = {"row": line, "amount": format(amount, ".2f"), "currency": currency}
+        if side == "left":
+            payment_id = row[mapping["payment_id"]].strip()
+            if not payment_id or payment_id in payment_ids:
+                raise HTTPException(422, f"Missing or duplicate payment ID at row {line}")
+            payment_ids.add(payment_id)
+            item["payment_id"] = payment_id
+        result[batch_id].append(item)
+    return result
+
+
+def reconcile_batches(expected, bank):
+    """Only explicit batch references; one positive bank deposit to many payments."""
+    findings, matches = [], []
+    for batch_id in sorted(set(expected) | set(bank)):
+        payments, deposits = expected.get(batch_id, []), bank.get(batch_id, [])
+        kind, delta = None, None
+        if len(deposits) > 1:
+            kind = "ambiguous_bank_batch"
+        elif not payments or not deposits:
+            kind = "missing_expected" if not payments else "missing_bank"
+        elif len({item["currency"] for item in payments}) != 1:
+            kind = "mixed_expected_currency"
+        elif payments[0]["currency"] != deposits[0]["currency"]:
+            kind = "currency_mismatch"
+        else:
+            total = sum((Decimal(item["amount"]) for item in payments), Decimal("0"))
+            delta = format(total - Decimal(deposits[0]["amount"]), ".2f")
+            if total != Decimal(deposits[0]["amount"]):
+                kind = "amount_mismatch"
+            else:
+                matches.append({"batch_id": batch_id, "currency": payments[0]["currency"],
+                                "amount": format(total, ".2f"), "payment_ids": [item["payment_id"] for item in payments],
+                                "bank_row": deposits[0]["row"]})
+        if kind:
+            findings.append({"finding_id": f"F{len(findings)+1:03d}", "type": kind,
+                             "batch_id": batch_id, "left": payments, "right": deposits, "delta": delta})
+    return findings, matches
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -101,7 +163,8 @@ def ready():
 
 
 @app.post("/runs", status_code=201)
-async def create(left: UploadFile = File(...), right: UploadFile = File(...)):
+async def create(left: UploadFile = File(...), right: UploadFile = File(...),
+                 mode: Literal["transaction", "batch"] = "transaction"):
     sources = {}
     for name, upload in (("left", left), ("right", right)):
         raw = await upload.read(1_000_001)
@@ -109,7 +172,8 @@ async def create(left: UploadFile = File(...), right: UploadFile = File(...)):
             raise HTTPException(413, "CSV exceeds 1 MB")
         sources[name] = parse(raw)
     run_id = str(uuid.uuid4())
-    data = {"id": run_id, "state": "uploaded", "sources": sources, "mapping": None, "findings": [], "reviews": {}}
+    data = {"id": run_id, "mode": mode, "state": "uploaded", "sources": sources, "mapping": None,
+            "findings": [], "reviews": {}}
     with connect(write=True) as db:
         db.insert(run_id, data)
     return {"id": run_id}
@@ -129,7 +193,10 @@ def set_mapping(run_id: str, mapping: Mapping):
             raise HTTPException(409, "Create a new run to change reconciled inputs")
         value = mapping.model_dump()
         for side in ("left", "right"):
-            normalize(data["sources"][side], value[side])
+            if data.get("mode", "transaction") == "batch":
+                normalize_batch(data["sources"][side], value[side], side)
+            else:
+                normalize(data["sources"][side], value[side])
         data.update(mapping=value, state="mapped")
         db.save(run_id, data)
     return {"state": "mapped"}
@@ -142,7 +209,11 @@ def execute(run_id: str):
         if data["state"] == "uploaded":
             raise HTTPException(409, "Confirm mapping first")
         if data["state"] != "reconciled":
-            data["findings"] = reconcile(*[normalize(data["sources"][s], data["mapping"][s]) for s in ("left", "right")])
+            if data.get("mode", "transaction") == "batch":
+                data["findings"], data["matched_batches"] = reconcile_batches(*[
+                    normalize_batch(data["sources"][s], data["mapping"][s], s) for s in ("left", "right")])
+            else:
+                data["findings"] = reconcile(*[normalize(data["sources"][s], data["mapping"][s]) for s in ("left", "right")])
             data["state"] = "reconciled"
             db.save(run_id, data)
     return data["findings"]
@@ -169,10 +240,11 @@ def export(run_id: str):
         raise HTTPException(409, "Reconcile first")
     out = io.StringIO(newline="")
     writer = csv.writer(out, lineterminator="\n")
-    writer.writerow(["finding_id", "type", "transaction_id", "delta", "decision"])
+    key_field = "batch_id" if data.get("mode", "transaction") == "batch" else "transaction_id"
+    writer.writerow(["finding_id", "type", key_field, "delta", "decision"])
     for f in data["findings"]:
         # Neutralize spreadsheet formulas in user-controlled transaction IDs.
-        key = f["transaction_id"]
+        key = f[key_field]
         if key.startswith(("=", "+", "-", "@", "\t", "\r")):
             key = "'" + key
         writer.writerow([f["finding_id"], f["type"], key, f["delta"], data["reviews"].get(f["finding_id"], {}).get("decision", "pending")])
@@ -191,6 +263,8 @@ def mapping_proposal(run_id: str):
     from app.llm import ProposalError, propose
     with connect() as db:
         data = db.read(run_id)
+    if data.get("mode", "transaction") == "batch":
+        raise HTTPException(409, "Batch references require explicit column selection")
     if data["state"] == "reconciled":
         raise HTTPException(409, "This run is already reconciled")
     headers = {side: data["sources"][side]["headers"] for side in ("left", "right")}
