@@ -1,0 +1,5 @@
+batch_ref,payment_ref,amount,ccy
+B-100,P-001,60.00,USD
+B-100,P-002,40.00,USD
+B-200,P-003,70.00,USD
+B-300,P-004,20.00,USD

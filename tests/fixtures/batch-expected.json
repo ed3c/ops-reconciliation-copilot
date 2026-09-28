@@ -1,0 +1,8 @@
+{
+  "matched_batches": [{"batch_id": "B-100", "currency": "USD", "amount": "100.00", "payment_ids": ["P-001", "P-002"], "bank_row": 2}],
+  "findings": [
+    {"finding_id": "F001", "type": "amount_mismatch", "batch_id": "B-200", "left": [{"row": 4, "amount": "70.00", "currency": "USD", "payment_id": "P-003"}], "right": [{"row": 3, "amount": "65.00", "currency": "USD"}], "delta": "5.00"},
+    {"finding_id": "F002", "type": "missing_bank", "batch_id": "B-300", "left": [{"row": 5, "amount": "20.00", "currency": "USD", "payment_id": "P-004"}], "right": [], "delta": null},
+    {"finding_id": "F003", "type": "missing_expected", "batch_id": "B-400", "left": [], "right": [{"row": 4, "amount": "15.00", "currency": "USD"}], "delta": null}
+  ]
+}

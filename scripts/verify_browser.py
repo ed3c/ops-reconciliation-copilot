@@ -96,6 +96,28 @@ with tempfile.TemporaryDirectory() as temp, (OUT / "server.log").open("w") as lo
                 page.set_viewport_size({"width": 390, "height": 844})
                 page.screenshot(path=str(OUT / "mobile.png"), full_page=True)
                 assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+                page.goto("http://127.0.0.1:8765/workspace")
+                page.get_by_label("Comparison type").select_option("batch")
+                expect(page.locator("#mode-note")).to_contain_text("explicit batch reference")
+                expect(page.get_by_role("button", name="Suggest columns")).to_be_hidden()
+                page.get_by_label("Left CSV").set_input_files(FIX / "batch-expected.csv")
+                page.get_by_label("Right CSV").set_input_files(FIX / "batch-bank.csv")
+                page.get_by_role("button", name="Upload files").click()
+                for side, values in {"left": ["batch_ref", "payment_ref", "amount", "ccy"],
+                                     "right": ["batch_ref", "deposit", "ccy"]}.items():
+                    for field, value in zip(["batch_id", "payment_id", "amount", "currency"] if side == "left"
+                                            else ["batch_id", "amount", "currency"], values):
+                        page.get_by_label(side + " " + field, exact=True).select_option(value)
+                page.get_by_role("button", name="Confirm and reconcile").click()
+                expect(page.locator("#summary")).to_have_text("1 matched batches · 3 differences found")
+                batch_run_id = page.url.split("?run=")[1]
+                batch_data = page.request.get(f"http://127.0.0.1:8765/runs/{batch_run_id}").json()
+                expected_batch = json.loads((FIX / "batch-expected.json").read_text())
+                assert batch_data["matched_batches"] == expected_batch["matched_batches"]
+                assert batch_data["findings"] == expected_batch["findings"]
+                page.reload()
+                expect(page.locator("#summary")).to_have_text("1 matched batches · 3 differences found")
+                page.screenshot(path=str(OUT / "batch.png"), full_page=True)
                 assert not errors, errors
                 page.get_by_role("button", name="Sign out").click()
                 expect(page.get_by_role("heading", name="使用 Google 登入", exact=True)).to_be_visible()
@@ -116,4 +138,4 @@ with tempfile.TemporaryDirectory() as temp, (OUT / "server.log").open("w") as lo
             server.kill()
             server.wait()
         (OUT / "result.json").write_text(json.dumps({"passed": passed, "live_llm": False, "live_google": False, "run_id": os.environ.get("GITHUB_RUN_ID")}))
-print("PASS: local test Google login/logout, browser upload, mapping recovery, source display, review persistence, export and mobile layout")
+print("PASS: local test Google login/logout, transaction and batch browser journeys, review persistence, export and mobile layout")
